@@ -226,6 +226,24 @@ enqueue_pbufs(struct pbuf *buff)
     state.num_pbufs++;
 }
 
+static void dump_payload(unsigned int len, uint8_t *buffer)
+{
+    print("len: ");
+    put8(len);
+    print("\n");
+    print("-------------------- payload start --------------------\n");
+    for (int i = 0; i < len; i++) {
+        // print("%02x ", buffer[i]);
+        puthex8(buffer[i]);
+        print(" ");
+
+    }
+    // puthex64((uint64_t)buffer);
+    print("\n");
+    print("--------------------- payload end ---------------------\n");
+    print("\n\n");
+}
+
 /* Grab an free TX buffer, copy pbuf data over,
     add to used tx ring, notify server */
 static err_t
@@ -246,7 +264,7 @@ lwip_eth_send(struct netif *netif, struct pbuf *p)
         return ERR_OK;
     }
 
-    
+
     uintptr_t buffer = alloc_tx_buffer(p->tot_len);
     if (buffer == NULL) {
         enqueue_pbufs(p);
@@ -266,7 +284,17 @@ lwip_eth_send(struct netif *netif, struct pbuf *p)
         copied += curr->len;
     }
 
-    cleanCache(frame, frame + copied);
+    // cleanCache(frame, frame + copied);
+
+    err = seL4_ARM_VSpace_Invalidate_Data(3, frame, frame + copied);
+    if (err) {
+        print("MUX RX|ERROR: ARM Vspace invalidate failed\n");
+        puthex64(err);
+        print("\n");
+    }
+    print("lwip_eth_send\n");
+
+    dump_payload(copied, (uint8_t *)frame);
 
     /* insert into the used tx queue */
     err = enqueue_used(&(state.tx_ring), (uintptr_t)frame, copied, NULL);
@@ -307,13 +335,13 @@ process_tx_queue(void)
             copied += curr->len;
         }
 
-        /*err = seL4_ARM_VSpace_Clean_Data(3, frame, frame + copied);
+        err = seL4_ARM_VSpace_Clean_Data(3, frame, frame + copied);
         if (err) {
             print("LWIP|ERROR: ARM VSpace clean failed: ");
             puthex64(err);
             print("\n");
-        }*/
-        cleanCache(frame, frame + copied);
+        }
+        // cleanCache(frame, frame + copied);
 
         /* insert into the used tx queue */
         err = enqueue_used(&(state.tx_ring), buffer, copied, NULL);
@@ -413,11 +441,19 @@ static void netif_status_callback(struct netif *netif)
 static void get_mac(void)
 {
     /* For now just use a dummy hardcoded mac address.*/
-    state.mac[0] = 0x52;
+    state.mac[0] = 0x55;
     state.mac[1] = 0x54;
     state.mac[2] = 0x1;
     state.mac[3] = 0;
     state.mac[4] = 0;
+
+    // state.mac[0] = 0;
+    // state.mac[1] = 0x1e;
+    // state.mac[2] = 0x06;
+    // state.mac[3] = 0x4a;
+    // state.mac[4] = 0x35;
+    // state.mac[5] = 0xe7;
+
     if (!strcmp(microkit_name, "client0")) {
         state.mac[5] = 0;
     } else {
@@ -467,12 +503,69 @@ void init(void)
 
     LWIP_MEMPOOL_INIT(RX_POOL);
 
+    // get_mac();
+
+    // /* Set some dummy IP configuration values to get lwIP bootstrapped  */
+    // struct ip4_addr netmask, ipaddr, gw, multicast;
+    // ipaddr_aton("0.0.0.0", &gw);
+    // ipaddr_aton("0.0.0.0", &ipaddr);
+    // ipaddr_aton("0.0.0.0", &multicast);
+    // ipaddr_aton("255.255.255.0", &netmask);
+
+    // state.netif.name[0] = 'e';
+    // state.netif.name[1] = '0';
+
+    // if (!netif_add(&(state.netif), &ipaddr, &netmask, &gw, (void *)&state,
+    //           ethernet_init, ethernet_input)) {
+    //     print("Netif add returned NULL\n");
+    // }
+
+    // netif_set_default(&(state.netif));
+
+    // netif_set_status_callback(&(state.netif), netif_status_callback);
+    // netif_set_up(&(state.netif));
+
+    // if (dhcp_start(&(state.netif))) {
+    //     print("failed to start DHCP negotiation\n");
+    // }
+
+    // setup_udp_socket();
+    // setup_utilization_socket();
+
+    // request_used_ntfn(&state.rx_ring);
+    // request_used_ntfn(&state.tx_ring);
+
+    // if (notify_rx && state.rx_ring.free_ring->notify_reader) {
+    //     notify_rx = false;
+    //     microkit_notify_delayed(RX_CH);
+    // }
+
+    // if (notify_tx && state.tx_ring.used_ring->notify_reader) {
+    //     notify_tx = false;
+    //     if (!have_signal) {
+    //         microkit_notify_delayed(TX_CH);
+    //     } else if (signal != BASE_OUTPUT_NOTIFICATION_CAP + TX_CH) {
+    //         microkit_notify(TX_CH);
+    //     }
+    // }
+
+    // print(microkit_name);
+    // print(": elf PD init complete\n");
+}
+
+
+void dhcp_init(void)
+{
+    print(microkit_name);
+    print(": DHCP started.\n");
+
     get_mac();
 
     /* Set some dummy IP configuration values to get lwIP bootstrapped  */
     struct ip4_addr netmask, ipaddr, gw, multicast;
     ipaddr_aton("0.0.0.0", &gw);
-    ipaddr_aton("0.0.0.0", &ipaddr);
+    ipaddr_aton("172.16.0.42", &ipaddr);
+    // ipaddr_aton("0.0.0.0", &ipaddr);
     ipaddr_aton("0.0.0.0", &multicast);
     ipaddr_aton("255.255.255.0", &netmask);
 
@@ -488,7 +581,7 @@ void init(void)
 
     netif_set_status_callback(&(state.netif), netif_status_callback);
     netif_set_up(&(state.netif));
-
+    
     if (dhcp_start(&(state.netif))) {
         print("failed to start DHCP negotiation\n");
     }
@@ -505,10 +598,13 @@ void init(void)
     }
 
     if (notify_tx && state.tx_ring.used_ring->notify_reader) {
+        print("notify_tx\n");
         notify_tx = false;
         if (!have_signal) {
+            print("branch 1\n");
             microkit_notify_delayed(TX_CH);
         } else if (signal != BASE_OUTPUT_NOTIFICATION_CAP + TX_CH) {
+            print("branch 2\n");
             microkit_notify(TX_CH);
         }
     }
@@ -520,6 +616,9 @@ void init(void)
 void notified(microkit_channel ch)
 {
     switch(ch) {
+        case 42:
+            dhcp_init();
+            break;
         case RX_CH:
             process_rx_queue();
             break;

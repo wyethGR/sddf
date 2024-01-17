@@ -129,6 +129,24 @@ set_timeout(uint64_t timeout)
     microkit_ppcall(TIMER_CH, microkit_msginfo_new(SET_TIMEOUT, 1));
 }
 
+static void dump_payload(unsigned int len, uint8_t *buffer)
+{
+    print("len: ");
+    put8(len);
+    print("\n");
+    print("-------------------- payload start --------------------\n");
+    for (int i = 0; i < len; i++) {
+        // print("%02x ", buffer[i]);
+        puthex8(buffer[i]);
+        print(" ");
+
+    }
+    // puthex64((uint64_t)buffer);
+    print("\n");
+    print("--------------------- payload end ---------------------\n");
+    print("\n\n");
+}
+
 void process_tx_ready(void)
 {
     uint64_t enqueued = 0;
@@ -152,8 +170,19 @@ void process_tx_ready(void)
 
             err = dequeue_used(&state.tx_ring_clients[client], &addr, &len, &cookie);
             assert(!err);
+
+            err = seL4_ARM_VSpace_Invalidate_Data(3, addr, addr + 1500);
+            if (err) {
+                print("MUX RX|ERROR: ARM Vspace invalidate failed\n");
+                puthex64(err);
+                print("\n");
+            }
+            dump_payload(len, (uint8_t *)addr);
+
             phys = get_phys_addr(addr);
             assert(phys);
+            puthex64(phys);
+            print("\n");
             err = enqueue_used(&state.tx_ring_drv, phys, len, cookie);
             assert(!err);
 
@@ -177,9 +206,15 @@ void process_tx_ready(void)
         }
     }
 
-    if (state.tx_ring_drv.used_ring->notify_reader && enqueued) {
+    print(enqueued ? "enqueued" : "nope");
+    print(" ");
+    print(state.tx_ring_drv.used_ring->notify_reader ? "notified reader" : "nope");
+    print("\n");
+
+    // if (state.tx_ring_drv.used_ring->notify_reader && enqueued) {
+        print("mux_tx microkit_notify_delayed\n");
         microkit_notify_delayed(DRIVER);
-    }
+    // }
 
     /* Ensure we get a notification when transmit is complete
       so we can dequeue free buffers and return them to the client. */
@@ -238,6 +273,8 @@ void notified(microkit_channel ch)
         state.client_usage[1].pending_timeout = false;
         state.tx_ring_clients[1].used_ring->notify_reader = true;
     }
+    print("mux_tx notified\n");
+
     process_tx_complete();
     process_tx_ready();
 }

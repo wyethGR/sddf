@@ -8,11 +8,18 @@
 #include <microkit.h>
 #include <sel4/sel4.h>
 #include <sddf/network/shared_ringbuffer.h>
-#include "ethernet.h"
+#include "./include/ethernet.h"
+#include "./include/miiphy.h"
+#include "./include/phy.h"
+#include "./include/net.h"
+#include "./include/designware.h"
+#include "./include/io.h"
+#include "util.h"
+// #include "printf.h"
+#include "fence.h"
 
-#define IRQ_2  0
-#define IRQ_CH 1
-#define TX_CH  2
+#define IRQ_CH 0
+#define TX_CH  1
 #define RX_CH  2
 #define INIT   4
 
@@ -27,6 +34,11 @@ uintptr_t rx_free;
 uintptr_t rx_used;
 uintptr_t tx_free;
 uintptr_t tx_used;
+uintptr_t uart_base;
+uintptr_t eth0_vaddr;
+
+uintptr_t shared_dma_vaddr_cli0;
+uintptr_t shared_dma_paddr_cli0;
 
 /* Make the minimum frame buffer 2k. This is a bit of a waste of memory, but ensures alignment */
 #define PACKET_BUFFER_SIZE  2048
@@ -68,6 +80,8 @@ static uint8_t mac[6];
 volatile struct eth_mac_regs *eth_mac = (void *)(uintptr_t)0x2000000;
 volatile struct eth_dma_regs *eth_dma = (void *)(uintptr_t)0x2000000 + DW_DMA_BASE_OFFSET;
 
+struct phy_device *phydev;
+
 static void get_mac_addr(volatile struct eth_mac_regs *reg, uint8_t *mac)
 {
     uint32_t l, h;
@@ -93,9 +107,10 @@ static void
 dump_mac(uint8_t *mac)
 {
     for (unsigned i = 0; i < 6; i++) {
-        //printf("%c%c", hexchar((mac[i] >> 4) & 0xf), hexchar(mac[i] & 0xf));
+        microkit_dbg_putc(hexchar((mac[i] >> 4) & 0xf));
+        microkit_dbg_putc(hexchar(mac[i] & 0xf));
         if (i < 5) {
-            //printf(":");
+            microkit_dbg_putc(':');
         }
     }
 }
@@ -140,7 +155,7 @@ alloc_rx_buf(size_t buf_size, void **cookie)
 
     /* Try to grab a buffer from the available ring */
     if (driver_dequeue(rx_ring.free_ring, &addr, &len, cookie)) {
-        //printf("RX Available ring is empty\n");
+        // printf("RX Available ring is empty\n");
         return 0;
     }
 
@@ -185,6 +200,7 @@ static void fill_rx_bufs()
 static void
 handle_rx()
 {
+    microkit_dbg_puts("handle_rx\n");
     ring_ctx_t *ring = &rx;
     unsigned int head = ring->head;
 
@@ -223,6 +239,7 @@ handle_rx()
     /* Notify client (only if we have actually processed a packet and 
     the client hasn't already been notified!) */
     if (num > 1 && was_empty) {
+        microkit_dbg_puts("notified mux_rx\n");
         microkit_notify(RX_CH);
     } 
 }
@@ -242,7 +259,7 @@ complete_tx()
             cnt = tx_lengths[head];
             if ((0 == cnt) || (cnt > TX_COUNT)) {
                 /* We are not supposed to read 0 here. */
-                //printf("complete_tx with cnt=0 or max\n");
+                print("complete_tx with cnt=0 or max\n");
                 return;
             }
             cnt_org = cnt;
@@ -254,7 +271,7 @@ complete_tx()
         /* If this buffer was not sent, we can't release any buffer. */
         if (d->status & DESC_TXSTS_OWNBYDMA) {
             /* not complete yet */
-            // //printf("Buffer was not sent\n");
+            print("Buffer was not sent\n");
             return;
         }
 
@@ -279,7 +296,7 @@ complete_tx()
      * of tx descriptors holding data can't exceed the space in the ring.
      */
     if (0 != cnt) {
-        //printf("head reached tail, but cnt!= 0\n");
+        print("head reached tail, but cnt!= 0\n");
     }
 }
 
@@ -294,7 +311,7 @@ raw_tx(unsigned int num, uintptr_t *phys, unsigned int *len, void *cookie)
         complete_tx();
         unsigned int rem = ring->remain;
         if (rem < num) {
-            //printf("TX queue lacks space\n");
+            print("TX queue lacks space\n");
             return;
         }
     }
@@ -316,7 +333,7 @@ raw_tx(unsigned int num, uintptr_t *phys, unsigned int *len, void *cookie)
             tail_new = 0;
         }
         if (ring->descr[idx].status & DESC_TXSTS_OWNBYDMA) {
-            //printf("CPU not owner of frame!\n");
+            print("CPU not owner of frame!\n");
         }
         update_ring_slot(ring, idx, DESC_TXSTS_OWNBYDMA, cntl, *phys++);
     }
@@ -335,6 +352,8 @@ raw_tx(unsigned int num, uintptr_t *phys, unsigned int *len, void *cookie)
 
     /* Start the transmission */
 	eth_dma->txpolldemand = POLL_DATA;
+    print("done!\n");
+    __sync_synchronize();
 }
 
 static void 
@@ -355,16 +374,16 @@ handle_eth(volatile struct eth_dma_regs *eth_dma)
         if (e & DMA_INTR_ABNORMAL) {
             //printf("Error: System bus/uDMA: %llx\n", e);
             if (e & DMA_INTR_ENA_FBE) {
-                //printf("    Ethernet device fatal bus error\n");
+                print("    Ethernet device fatal bus error\n");
             }
             if (e & DMA_INTR_ENA_UNE) {
-                //printf("    Ethernet device TX underflow\n");
+                print("    Ethernet device TX underflow\n");
             }
             if (e & DMA_INTR_ENA_RBU) {
-                //printf("    Ethernet device RX Buffer unavailable\n");
+                print("    Ethernet device RX Buffer unavailable\n");
             }
             if (e & DMA_INTR_ENA_RPS) {
-                //printf("    Ethernet device RX Stopped\n");
+                print("    Ethernet device RX Stopped\n");
                 fill_rx_bufs();
                 break;
             }
@@ -375,27 +394,131 @@ handle_eth(volatile struct eth_dma_regs *eth_dma)
     }
 }
 
+static void dump_payload(unsigned int len, uint8_t *buffer)
+{
+    print("len: ");
+    put8(len);
+    print("\n");
+    print("-------------------- payload start --------------------\n");
+    for (int i = 0; i < len; i++) {
+        // print("%02x ", buffer[i]);
+        puthex8(buffer[i]);
+        print(" ");
+
+    }
+    print("\n");
+    print("--------------------- payload end ---------------------\n");
+    print("\n\n");
+}
+
+
 static void 
 handle_tx()
 {
+    microkit_dbg_puts("handle_tx\n");
     uintptr_t buffer = 0;
     unsigned int len = 0;
     void *cookie = NULL;
 
     // We need to put in an empty condition here. 
     while ((tx.remain > 1) && !driver_dequeue(tx_ring.used_ring, &buffer, &len, &cookie)) {
-        uintptr_t phys = getPhysAddr(buffer);
-        raw_tx(1, &phys, &len, cookie);
+
+        puthex64(buffer);
+        print("\n");
+        uintptr_t vaddr = (buffer & 0xffff) + shared_dma_vaddr_cli0;
+        dump_payload(len, (uint8_t *)vaddr);
+
+        int err = seL4_ARM_VSpace_Invalidate_Data(3, vaddr, vaddr + 1500);
+        if (err) {
+            print("MUX RX|ERROR: ARM Vspace invalidate failed\n");
+            puthex64(err);
+            print("\n");
+        }
+        raw_tx(1, &buffer, &len, cookie);
     }
+}
+
+static int dw_mdio_read(struct mii_dev *bus, int addr, int devad, int reg)
+{
+    volatile struct eth_mac_regs *mac_p = bus->priv;
+    uint16_t miiaddr;
+    miiaddr = ((addr << MIIADDRSHIFT) & MII_ADDRMSK) |
+              ((reg << MIIREGSHIFT) & MII_REGMSK);
+
+    writel(miiaddr | MII_CLKRANGE_150_250M | MII_BUSY, &mac_p->miiaddr);
+
+    for (int i = 0; i < 10; i++) {
+        if (!(readl(&mac_p->miiaddr) & MII_BUSY)) {
+            return readl(&mac_p->miidata);
+        }
+        uboot_udelay(10);
+    };
+    print("dw_mdio_read fail\n");
+    return -1;
+}
+
+static int dw_mdio_write(struct mii_dev *bus, int addr, int devad, int reg,
+                         uint16_t val)
+{
+    volatile struct eth_mac_regs *mac_p = bus->priv;
+    uint16_t miiaddr;
+
+    writel(val, &mac_p->miidata);
+    miiaddr = ((addr << MIIADDRSHIFT) & MII_ADDRMSK) |
+              ((reg << MIIREGSHIFT) & MII_REGMSK) | MII_WRITE;
+
+    writel(miiaddr | MII_CLKRANGE_150_250M | MII_BUSY, &mac_p->miiaddr);
+
+    for (int i = 0; i < 10; i++) {
+        if (!(readl(&mac_p->miiaddr) & MII_BUSY)) {
+            return 0;
+        }
+        uboot_udelay(10);
+    };
+
+    print("dw_mdio_write fail\n");
+    return -1;
+}
+
+static int dw_adjust_link(volatile struct eth_mac_regs *mac_p, struct phy_device *phydev)
+{
+    u32 conf = readl(&mac_p->conf) | FRAMEBURSTENABLE | DISABLERXOWN;
+
+    if (!phydev->link) {
+        print("No link.\n");
+        return 0;
+    }
+
+    if (phydev->speed != 1000) {
+        conf |= MII_PORTSELECT;
+    } else {
+        conf &= ~MII_PORTSELECT;
+    }
+
+    if (phydev->speed == 100) {
+        conf |= FES_100;
+    }
+
+    if (phydev->duplex) {
+        conf |= FULLDPLXMODE;
+    }
+
+    writel(conf, &mac_p->conf);
+
+    // printf("Speed: %d, %s duplex%s\n", phydev->speed,
+    //        (phydev->duplex) ? "full" : "half",
+    //        (phydev->port == PORT_FIBRE) ? ", fiber mode" : "");
+
+    return 0;
 }
 
 static void 
 eth_setup(void)
 {
     get_mac_addr(eth_mac, mac);
-    //printf("MAC: ");
-    dump_mac(mac);
-    //printf("\n");
+    // printf("MAC: ");
+    // dump_mac(mac);
+    // printf("\n");
 
     /* set up descriptor rings */
     rx.cnt = RX_COUNT;
@@ -441,6 +564,46 @@ eth_setup(void)
         tx.descr[i].addr = 0;
     }
 
+    /* Initialise the MII abstraction layer */
+    miiphy_init();
+
+    /* Initialise the actual Realtek PHY */
+    phy_init();
+
+    struct mii_dev *bus = mdio_alloc();
+    assert(bus);
+
+    bus->read = dw_mdio_read;
+    bus->write = dw_mdio_write;
+    // snprintf(bus->name, sizeof(bus->name), "dwmac.%lx", eth0_vaddr);
+
+    bus->priv = eth_mac;
+
+    mdio_register(bus);
+
+    mdio_list_devices();
+    // bus = miiphy_get_dev_by_name(bus->name);
+    // assert(bus);
+
+    int mask = 0xffffffff;
+
+    phydev = phy_find_by_mask(bus, mask, 0);
+    assert(phydev);
+    phy_reset(phydev);
+
+    phydev->supported &= PHY_GBIT_FEATURES;
+    // if (priv->max_speed) {
+    //     ret = phy_set_supported(phydev, priv->max_speed);
+    //     if (ret) {
+    //         printf("something went wrong\n");
+    //         return;
+    //     }
+    // }
+    phydev->supported |= PHY_1000BT_FEATURES;
+    phydev->advertising = phydev->supported;
+
+    phy_config(phydev);
+
     /* Perform reset */
     eth_dma->busmode |= DMAMAC_SRST;
     while (eth_dma->busmode & DMAMAC_SRST);
@@ -455,10 +618,7 @@ eth_setup(void)
 
     eth_dma->rxdesclistaddr = hw_ring_buffer_paddr;
     eth_dma->txdesclistaddr = hw_ring_buffer_paddr + (sizeof(struct descriptor) * RX_COUNT);
-}
 
-void init_post()
-{
     /* Set up shared memory regions */
     ring_init(&rx_ring, (ring_buffer_t *)rx_free, (ring_buffer_t *)rx_used, 0, SIZE, SIZE);
     ring_init(&tx_ring, (ring_buffer_t *)tx_free, (ring_buffer_t *)tx_used, 0, SIZE, SIZE);
@@ -470,12 +630,23 @@ void init_post()
     /* Disable uneeded GMAC irqs */
     eth_mac->intmask |= GMAC_INT_DEFAULT_MASK;
 
+    /* Start up the PHY */
+    int ret = phy_startup(phydev);
+    assert(ret == 0);
+
+    ret = dw_adjust_link(eth_mac, phydev);
+    assert(ret == 0);
+
     /* We are ready to receive. Enable. */
     eth_mac->conf |= RXENABLE | TXENABLE;
     eth_dma->opmode |= TXSTART | RXSTART;
+}
 
-    //printf("%s: init complete -- waiting for interrupt\n", microkit_name);
-    microkit_notify(INIT);
+void init_post()
+{
+    // printf("%s: init complete -- waiting for interrupt\n", microkit_name);
+    microkit_dbg_puts("init complete -- waiting for interrupt\n");
+    // microkit_notify(INIT);
 
     /* Now take away our scheduling context. Uncomment this for a passive driver. */
     /* have_signal = true;
@@ -488,7 +659,7 @@ void init_post()
 void init(void)
 {
     //printf("%s: elf PD init function running\n", microkit_name);
-    microkit_dbg_puts("ethernet init!\n");
+    // microkit_dbg_puts("ethernet init!\n");
 
     eth_setup();
 
@@ -504,6 +675,9 @@ protected(microkit_channel ch, microkit_msginfo msginfo)
             microkit_mr_set(0, eth_mac->macaddr0lo);
             microkit_mr_set(1, eth_mac->macaddr0hi);
             return microkit_msginfo_new(0, 2);
+        case RX_CH:
+            init_post();
+            break;
         case TX_CH:
             handle_tx();
             break;
@@ -523,14 +697,12 @@ void notified(microkit_channel ch)
             signal_msg = seL4_MessageInfo_new(IRQAckIRQ, 0, 0, 0);
             signal = (BASE_IRQ_CAP + IRQ_CH);
             return;
-        case IRQ_2:
-            handle_eth(eth_dma);
-            have_signal = true;
-            signal_msg = seL4_MessageInfo_new(IRQAckIRQ, 0, 0, 0);
-            signal = (BASE_IRQ_CAP + IRQ_CH);
-        case INIT:
-            init_post();
-            break;
+        // case 4:
+        //     microkit_dbg_puts("irq 4\n");
+        //     handle_eth(eth_dma);
+        //     have_signal = true;
+        //     signal_msg = seL4_MessageInfo_new(IRQAckIRQ, 0, 0, 0);
+        //     signal = (BASE_IRQ_CAP + 4);
         case TX_CH:
             handle_tx();
             break;

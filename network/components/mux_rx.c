@@ -109,6 +109,34 @@ int get_client(uintptr_t dma_vaddr) {
     return -1;
 }
 
+bool is_broadcast(uintptr_t dma_vaddr) {
+    struct eth_hdr *ethhdr = (struct eth_hdr *)dma_vaddr;
+    if (compare_mac(ethhdr->dest.addr, state.mac_addrs[2]) == 0) {
+        return true;
+    }
+
+    /* Packet isn't for us */
+    return false;
+}
+
+static void dump_payload(unsigned int len, uint8_t *buffer)
+{
+    print("len: ");
+    put8(len);
+    print("\n");
+    print("-------------------- payload start --------------------\n");
+    for (int i = 0; i < len; i++) {
+        // print("%02x ", buffer[i]);
+        puthex8(buffer[i]);
+        print(" ");
+
+    }
+    // puthex64((uint64_t)buffer);
+    print("\n");
+    print("--------------------- payload end ---------------------\n");
+    print("\n\n");
+}
+
 /*
  * Loop over driver and insert all used rx buffers to appropriate client queues.
  */
@@ -144,8 +172,10 @@ void process_rx_complete(void)
             print("\n");
         }
 
+        dump_payload(len, vaddr);
         // Get MAC address and work out which client it is.
-        int client = get_client(vaddr);
+        // int client = get_client(vaddr);
+        int client = 0;
         if (client >= 0 && !ring_full(state.rx_ring_clients[client].used_ring)) {
             /* enqueue it. */
             int err = enqueue_used(&state.rx_ring_clients[client], vaddr, len, cookie);
@@ -170,6 +200,7 @@ void process_rx_complete(void)
     /* Loop over bitmap and see who we need to notify. */
     for (int client = 0; client < NUM_CLIENTS; client++) {
         if (notify_clients[client]) {
+            print("notified client0\n");
             microkit_notify(client);
         }
 
@@ -247,14 +278,22 @@ void notified(microkit_channel ch)
 void init(void)
 {
     // set up client macs 
-    state.mac_addrs[0][0] = 0x52;
+    state.mac_addrs[0][0] = 0x55;
     state.mac_addrs[0][1] = 0x54;
     state.mac_addrs[0][2] = 0x1;
     state.mac_addrs[0][3] = 0;
     state.mac_addrs[0][4] = 0;
     state.mac_addrs[0][5] = 0;
 
-    state.mac_addrs[1][0] = 0x52;
+    // 00:1e:06:4a:35:e7
+    // state.mac_addrs[0][0] = 0;
+    // state.mac_addrs[0][1] = 0x1e;
+    // state.mac_addrs[0][2] = 0x06;
+    // state.mac_addrs[0][3] = 0x4a;
+    // state.mac_addrs[0][4] = 0x35;
+    // state.mac_addrs[0][5] = 0xe7;
+
+    state.mac_addrs[1][0] = 0x55;
     state.mac_addrs[1][1] = 0x54;
     state.mac_addrs[1][2] = 0x1;
     state.mac_addrs[1][3] = 0;
@@ -293,7 +332,10 @@ void init(void)
     // ensure we get a notification when a packet comes in
     state.rx_ring_drv.used_ring->notify_reader = true;
     // Notify the driver that we are ready to receive
-    microkit_notify(DRIVER_CH);
-
+    // microkit_notify(DRIVER_CH);
+    microkit_ppcall(DRIVER_CH, microkit_msginfo_new(0, 0));
+    print("I'm back!\n");
+    microkit_notify(42);
+    // microkit_notify(43);
     return;
 }

@@ -38,8 +38,10 @@ LWIP=$(SDDF)/network/ipstacks/lwip/src
 BENCHMARK=$(SDDF)/benchmark
 UTIL=$(SDDF)/util
 RING_BUFFER=$(SDDF)/network/libethsharedringbuffer
-ETHERNET_DRIVER=$(SDDF)/drivers/network/imx
-TIMER_DRIVER=$(SDDF)/drivers/clock/imx
+# ETHERNET_DRIVER=$(SDDF)/drivers/network/imx
+ETHERNET_DRIVER=$(SDDF)/drivers/network/meson
+# TIMER_DRIVER=$(SDDF)/drivers/clock/imx
+TIMER_DRIVER=$(SDDF)/drivers/clock/meson
 NETWORK_COMPONENTS=$(SDDF)/network/components
 
 BOARD_DIR := $(MICROKIT_SDK)/board/$(MICROKIT_BOARD)/$(MICROKIT_CONFIG)
@@ -103,7 +105,7 @@ NETIFFILES=$(LWIP)/netif/ethernet.c
 LWIPFILES=$(NETWORK_COMPONENTS)/lwip.c $(NETWORK_COMPONENTS)/lwip_timer.c $(UTIL)/cache.c $(COREFILES) $(CORE4FILES) $(NETIFFILES)
 LWIP_OBJS := $(LWIPFILES:.c=.o) $(NETWORK_COMPONENTS)/lwip.o sddf_network_sharedringbuffer.o $(NETWORK_COMPONENTS)/utilization_socket.o $(NETWORK_COMPONENTS)/udp_echo_socket.o
 
-ETH_OBJS := $(ETHERNET_DRIVER)/ethernet.o sddf_network_sharedringbuffer.o
+ETH_OBJS := $(ETHERNET_DRIVER)/ethernet.o $(ETHERNET_DRIVER)/phy.o $(ETHERNET_DRIVER)/realtek.o $(ETHERNET_DRIVER)/miiphyutil.o sddf_network_sharedringbuffer.o
 MUX_RX_OBJS := $(NETWORK_COMPONENTS)/mux_rx.o sddf_network_sharedringbuffer.o
 #MUX_TX_OBJS := mux_tx_round_robin.o sddf_network_sharedringbuffer.o
 MUX_TX_OBJS := $(NETWORK_COMPONENTS)/mux_tx_bandwidth_limited.o sddf_network_sharedringbuffer.o

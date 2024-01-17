@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <microkit.h>
+
 #define UART_REG(x) ((volatile uint32_t *)(UART_BASE + (x)))
 #define UART_BASE 0x5000000 //0x30890000 in hardware on imx8mm.
 #define STAT 0x98
@@ -31,12 +33,13 @@ putC(uint8_t ch)
 static void
 print(const char *s)
 {
-#ifndef NO_PRINTING
-    while (*s) {
-        putC(*s);
-        s++;
-    }
-#endif
+// #ifndef NO_PRINTING
+//     while (*s) {
+//         putC(*s);
+//         s++;
+//     }
+// #endif
+    microkit_dbg_puts(s);
 }
 
 static char
@@ -56,6 +59,17 @@ puthex64(uint64_t val)
         buffer[i] = hexchar(val & 0xf);
         val >>= 4;
     }
+    print(buffer);
+}
+
+static void
+puthex8(uint64_t val)
+{
+    char buffer[3];
+    buffer[2] = 0;
+    buffer[1] = hexchar(val & 0xf);
+    val >>= 4;
+    buffer[0] = hexchar(val & 0xf);
     print(buffer);
 }
 

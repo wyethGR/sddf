@@ -2,6 +2,7 @@
 #include <microkit.h>
 
 uintptr_t gpt_regs;
+uintptr_t uart_base;
 
 #define IRQ_CH 0
 #define GET_TIME 0
