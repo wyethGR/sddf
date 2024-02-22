@@ -13,10 +13,8 @@
 
 /* Size of a single block to be transferred */
 #define BLK_TRANSFER_SIZE 4096
-/* Maximum number of slots in the request queue. Can be configured. */
-#define BLK_REQ_QUEUE_SIZE 1024
-/* Maximum number of slots in the response queue. Can be configured. */
-#define BLK_RESP_QUEUE_SIZE 1024
+/* Maximum number of slots in each queue. Can be configured. */
+#define BLK_QUEUE_SIZE 1024
 /* Device serial number max string length */
 #define BLK_MAX_SERIAL_NUMBER 63
 
@@ -66,14 +64,14 @@ typedef struct blk_req_queue {
     uint32_t head;
     uint32_t tail;
     bool plugged; /* prevent requests from being dequeued when plugged */
-    blk_request_t buffers[BLK_REQ_QUEUE_SIZE];
+    blk_request_t buffers[BLK_QUEUE_SIZE];
 } blk_req_queue_t;
 
 /* Circular buffer containing responses */
 typedef struct blk_resp_queue {
     uint32_t head;
     uint32_t tail;
-    blk_response_t buffers[BLK_RESP_QUEUE_SIZE];
+    blk_response_t buffers[BLK_QUEUE_SIZE];
 } blk_resp_queue_t;
 
 /* A queue handle for queueing/dequeueing request and responses */
@@ -115,9 +113,9 @@ static inline bool blk_req_queue_empty(blk_queue_handle_t *h)
 
 /**
  * Check if the response queue is empty.
- *
+ * 
  * @param h queue handle containing response queue.
- *
+ * 
  * @return true indicates the response queue is empty, false otherwise.
  */
 static inline bool blk_resp_queue_empty(blk_queue_handle_t *h)
@@ -177,8 +175,6 @@ static inline int blk_resp_queue_size(blk_queue_handle_t *h)
  * Enqueue an element into the request queue.
  *
  * @param h queue handle containing request queue to enqueue to.
- * @param code request code.
- * @param addr encoded dma address of data to read/write.
  * @param block_number block number to read/write to.
  * @param count the number of blocks to read/write
  * @param id request ID to identify this request.
