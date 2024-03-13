@@ -21,6 +21,9 @@ ifeq ($(strip $(MICROKIT_BOARD)), odroidc4)
 else ifeq ($(strip $(MICROKIT_BOARD)), imx8mm_evk)
 	DRIV_DIR := imx
 	CPU := cortex-a53
+else ifeq ($(strip $(MICROKIT_BOARD)), imx8mm_evk_4_cores)
+	DRIV_DIR := imx
+	CPU := cortex-a53
 else
 $(error Unsupported MICROKIT_BOARD given)
 endif
@@ -43,7 +46,7 @@ NETWORK_COMPONENTS=$(SDDF)/network/components
 BOARD_DIR := $(MICROKIT_SDK)/board/$(MICROKIT_BOARD)/$(MICROKIT_CONFIG)
 SYSTEM_FILE := board/$(MICROKIT_BOARD)/echo_server.system
 
-IMAGES := eth.elf lwip.elf benchmark.elf idle.elf mux_rx.elf mux_tx.elf copy.elf arp.elf timer.elf
+IMAGES := eth.elf lwip.elf benchmark.elf benchmark_secondary.elf idle.elf mux_rx.elf mux_tx.elf copy.elf arp.elf timer.elf
 CFLAGS := -mcpu=$(CPU) -mstrict-align -ffreestanding -g3 -O3 -Wall -Wno-unused-function
 
 LDFLAGS := -L$(BOARD_DIR)/lib -L$(SDDF)/lib
@@ -104,6 +107,7 @@ MUX_RX_OBJS := $(NETWORK_COMPONENTS)/mux_rx.o sddf_network_sharedringbuffer.o pr
 MUX_TX_OBJS := $(NETWORK_COMPONENTS)/mux_tx.o sddf_network_sharedringbuffer.o $(UTIL)/cache.o printf.o putchar_debug.o
 COPY_OBJS := $(NETWORK_COMPONENTS)/copy.o sddf_network_sharedringbuffer.o printf.o putchar_debug.o
 BENCH_OBJS := $(BENCHMARK)/benchmark.o printf.o putchar_serial.o
+BENCH_SECONDARY_OBJS := $(BENCHMARK)/benchmark_secondary.o printf.o putchar_serial.o
 IDLE_OBJS := $(BENCHMARK)/idle.o printf.o putchar_debug.o
 ARP_OBJS := $(NETWORK_COMPONENTS)/arp.o sddf_network_sharedringbuffer.o printf.o putchar_serial.o
 TIMER_OBJS := $(TIMER_DRIVER)/timer.o printf.o putchar_debug.o
@@ -154,6 +158,9 @@ $(BUILD_DIR)/copy.elf: $(addprefix $(BUILD_DIR)/, $(COPY_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(BUILD_DIR)/benchmark.elf: $(addprefix $(BUILD_DIR)/, $(BENCH_OBJS))
+	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
+
+$(BUILD_DIR)/benchmark_secondary.elf: $(addprefix $(BUILD_DIR)/, $(BENCH_SECONDARY_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(BUILD_DIR)/idle.elf: $(addprefix $(BUILD_DIR)/, $(IDLE_OBJS))

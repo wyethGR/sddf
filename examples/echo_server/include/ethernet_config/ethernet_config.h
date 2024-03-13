@@ -29,6 +29,24 @@
 #define MAC_ADDR_CLI1                       0x525401000004
 #endif
 
+#define PD_TOTAL        0
+#define PD_ETH_ID       1
+#define PD_MUX_RX_ID    2
+#define PD_MUX_TX_ID    3
+#define PD_COPY_ID      4
+#define PD_COPY1_ID     5
+#define PD_LWIP_ID      6
+#define PD_LWIP1_ID     7
+#define PD_ARP_ID       8
+#define PD_TIMER_ID     9
+
+#define NUM_CORES       2
+
+#define CORE_CLIENTS0                       0b0000001010
+#define CORE_CLIENTS1                       0b1111110100
+#define CORE_CLIENTS2                       0b0000000000
+#define CORE_CLIENTS3                       0b0000000000
+
 #define TX_RING_SIZE_ARP                    512
 #define TX_RING_SIZE_CLI0                   512
 #define TX_RING_SIZE_CLI1                   512
@@ -153,5 +171,21 @@ static void mem_region_init_sys(char *pd_name, uintptr_t *mem_regions, uintptr_t
         mem_regions[0] = start_region;
         mem_regions[1] = start_region + DATA_REGION_SIZE;
         mem_regions[2] = start_region + DATA_REGION_SIZE * 2;
+    }
+}
+
+static void benchmark_init_sys(char *pd_name, uint16_t *core, uint64_t *core_clients) {
+    if (__str_match(pd_name, "bench0")) {
+        *core = 0;
+        *core_clients = CORE_CLIENTS0;
+    } else if (__str_match(pd_name, "bench1")) {
+        *core = 1;
+        *core_clients = CORE_CLIENTS1;
+    } else if (__str_match(pd_name, "bench2")) {
+        *core = 2;
+        *core_clients = CORE_CLIENTS2;
+    } else if (__str_match(pd_name, "bench3")) {
+        *core = 3;
+        *core_clients = CORE_CLIENTS3;
     }
 }
