@@ -12,14 +12,9 @@
 #include <sddf/util/printf.h>
 
 #define LOG_BUFFER_CAP 7
-
-#define INIT0 5
-#define INIT1 6
-#define INIT2 7
-#define INIT3 8
+#define INIT 5
 
 uintptr_t uart_base;
-uintptr_t cyclecounters_vaddr;
 
 ccnt_t counter_values[8];
 counter_bitfield_t benchmark_bf;
@@ -78,7 +73,7 @@ void notified(microkit_channel ch)
             seL4_BenchmarkResetLog();
             #endif
 
-            microkit_notify(TX_START);
+            if (core != 3) microkit_notify(TX_START);
             break;
         case RX_STOP:
             sel4bench_get_counters(benchmark_bf, &counter_values[0]);
@@ -99,7 +94,7 @@ void notified(microkit_channel ch)
             #endif
 
             THREAD_MEMORY_RELEASE();
-            microkit_notify(TX_STOP);
+            if (core != 3) microkit_notify(TX_STOP);
             break;
         default:
             dprintf("Bench thread notified on unexpected channel %llu\n", ch);
@@ -123,11 +118,8 @@ void init(void)
     sel4bench_start_counters(mask);
     benchmark_bf = mask;
 
-    /* Notify the idle threads that the sel4bench library is initialised. */
-    microkit_notify(INIT0);
-    microkit_notify(INIT1);
-    microkit_notify(INIT2);
-    microkit_notify(INIT3);
+    /* Notify the idle thread that the sel4bench library is initialised. */
+    microkit_notify(INIT);
 
 #ifdef CONFIG_BENCHMARK_TRACK_KERNEL_ENTRIES
     int res_buf = seL4_BenchmarkSetLogBuffer(LOG_BUFFER_CAP);

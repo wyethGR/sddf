@@ -54,7 +54,7 @@ static void print_benchmark_details(uint64_t pd_id, uint64_t kernel_util, uint64
 static void microkit_benchmark_start(uint64_t core_clients)
 {
     seL4_BenchmarkResetThreadUtilisation(TCB_CAP);
-    for (unsigned pd_id = 1; pd_id < 64; pd_id++) {
+    for (uint64_t pd_id = 1; pd_id < 64; pd_id++) {
         if ((core_clients >> pd_id) & 1) {
             seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + pd_id);
         }
@@ -93,8 +93,8 @@ static void microkit_benchmark_stop_all(uint64_t core_clients)
     uint64_t number_schedules;
     microkit_benchmark_stop(&total, &number_schedules, &kernel, &entries);
     print_benchmark_details(PD_TOTAL, kernel, entries, number_schedules, total);
-
-    for (unsigned pd_id = 1; pd_id < 64; pd_id++) {
+    
+    for (uint64_t pd_id = 1; pd_id < 64; pd_id++) {
         if ((core_clients >> pd_id) & 1) {
             microkit_benchmark_stop_tcb(pd_id, &total, &number_schedules, &kernel, &entries);
             print_benchmark_details(pd_id, kernel, entries, number_schedules, total);
