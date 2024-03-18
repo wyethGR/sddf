@@ -40,10 +40,10 @@
 #define PD_ARP_ID       8
 #define PD_TIMER_ID     9
 
-#define NUM_CORES       2
+#define CORE_BITMAP     0b0011
 
-#define CORE_CLIENTS0                       0b0000001010
-#define CORE_CLIENTS1                       0b1111110100
+#define CORE_CLIENTS0                       0b0011110110
+#define CORE_CLIENTS1                       0b1100001000
 #define CORE_CLIENTS2                       0b0000000000
 #define CORE_CLIENTS3                       0b0000000000
 

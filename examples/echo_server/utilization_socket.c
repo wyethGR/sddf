@@ -84,9 +84,9 @@ static struct tcp_pcb *utiliz_socket;
 
 #define IDLE_COUNT_SIZE 0x1000
 
-uint64_t start[NUM_CORES];
-uint64_t idle_ccount_start[NUM_CORES];
-uint64_t idle_overflow_start[NUM_CORES];
+uint64_t start[4];
+uint64_t idle_ccount_start[4];
+uint64_t idle_overflow_start[4];
 
 char data_packet_str[MAX_PACKET_SIZE];
 
@@ -146,10 +146,11 @@ static err_t utilization_recv_callback(void *arg, struct tcp_pcb *pcb, struct pb
     } else if (msg_match(data_packet_str, START)) {
         printf("%s measurement starting... \n", microkit_name);
         if (!strcmp(microkit_name, "client0")) {
-            for (int i = 0; i < NUM_CORES; i++) {
-                start[i] = ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ts;
-                idle_ccount_start[i] = ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ccount;
-                idle_overflow_start[i] = ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->overflows;
+            for (int i = 0; i < 4; i++) {
+                if ((CORE_BITMAP >> i) & 1) {
+                    total += ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ts - start[i];
+                    idle += ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ccount - idle_ccount_start[i];
+                }
             }
             microkit_notify(START_PMU);
         }
@@ -159,9 +160,11 @@ static err_t utilization_recv_callback(void *arg, struct tcp_pcb *pcb, struct pb
         uint64_t total = 0, idle = 0;
 
         if (!strcmp(microkit_name, "client0")) {
-            for (int i = 0; i < NUM_CORES; i++) {
-                total += ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ts - start[i];
-                idle += ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ccount - idle_ccount_start[i];
+            for (int i = 0; i < 4; i++) {
+                if ((CORE_BITMAP >> i) & 1) {
+                    total += ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ts - start[i];
+                    idle += ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ccount - idle_ccount_start[i];
+                }
             }
         }
 
