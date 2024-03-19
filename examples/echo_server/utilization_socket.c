@@ -19,7 +19,7 @@
 
 #include <sddf/util/util.h>
 #include <sddf/benchmark/bench.h>
-#include <sddf/benchmark/util.h>
+#include <ethernet_config.h>
 #include <sddf/util/printf.h>
 
 #include "echo.h"
@@ -148,8 +148,9 @@ static err_t utilization_recv_callback(void *arg, struct tcp_pcb *pcb, struct pb
         if (!strcmp(microkit_name, "client0")) {
             for (int i = 0; i < 4; i++) {
                 if ((CORE_BITMAP >> i) & 1) {
-                    total += ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ts - start[i];
-                    idle += ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ccount - idle_ccount_start[i];
+                    start[i] = ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ts;
+                    idle_ccount_start[i] = ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->ccount;
+                    idle_overflow_start[i] = ((struct bench *)(cyclecounters_vaddr + IDLE_COUNT_SIZE*i))->overflows;
                 }
             }
             microkit_notify(START_PMU);
