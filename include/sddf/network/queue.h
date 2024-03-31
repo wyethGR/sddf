@@ -101,9 +101,9 @@ static inline int net_enqueue_free(net_queue_handle_t *queue, net_buff_desc_t bu
     if (net_queue_full_free(queue)) return -1;
 
     queue->free->buffers[queue->free->tail % queue->size] = buffer;
-    #ifdef CONFIG_ENABLE_SMP_SUPPORT
-        THREAD_MEMORY_RELEASE();
-    #endif
+#ifdef CONFIG_ENABLE_SMP_SUPPORT
+    THREAD_MEMORY_RELEASE();
+#endif
     queue->free->tail++;
 
     return 0;
@@ -122,9 +122,9 @@ static inline int net_enqueue_active(net_queue_handle_t *queue, net_buff_desc_t 
     if (net_queue_full_active(queue)) return -1;
 
     queue->active->buffers[queue->active->tail % queue->size] = buffer;
-    #ifdef CONFIG_ENABLE_SMP_SUPPORT
-        THREAD_MEMORY_RELEASE();
-    #endif
+#ifdef CONFIG_ENABLE_SMP_SUPPORT
+    THREAD_MEMORY_RELEASE();
+#endif
     queue->active->tail++;
 
     return 0;
@@ -143,9 +143,9 @@ static inline int net_dequeue_free(net_queue_handle_t *queue, net_buff_desc_t *b
     if (net_queue_empty_free(queue)) return -1;
 
     *buffer = queue->free->buffers[queue->free->head % queue->size];
-    #ifdef CONFIG_ENABLE_SMP_SUPPORT
+#ifdef CONFIG_ENABLE_SMP_SUPPORT
     THREAD_MEMORY_RELEASE();
-    #endif
+#endif
     queue->free->head++;
 
     return 0;
@@ -164,9 +164,9 @@ static inline int net_dequeue_active(net_queue_handle_t *queue, net_buff_desc_t 
     if (net_queue_empty_active(queue)) return -1;
 
     *buffer = queue->active->buffers[queue->active->head % queue->size];
-    #ifdef CONFIG_ENABLE_SMP_SUPPORT
+#ifdef CONFIG_ENABLE_SMP_SUPPORT
     THREAD_MEMORY_RELEASE();
-    #endif
+#endif
     queue->active->head++;
 
     return 0;
