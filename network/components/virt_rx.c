@@ -89,7 +89,7 @@ void rx_return(void)
             net_cancel_signal_active(&state.rx_queue_clients[client]);
             microkit_notify(client + CLIENT_CH);
         }
-    }    
+    }
 }
 
 void rx_provide(void)
