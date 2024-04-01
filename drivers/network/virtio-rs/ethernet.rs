@@ -19,7 +19,7 @@ use virtio_drivers::{
 
 use sel4_externally_shared::{ExternallySharedRef, ExternallySharedRefExt};
 use sel4_microkit::{
-    memory_region_symbol, protection_domain, var, Channel, Handler, Infallible,
+    memory_region_symbol, protection_domain, var, Channel, Handler, Infallible, debug_println
 };
 
 use sddf_net_queue::{QueueHandle};
@@ -29,8 +29,8 @@ mod hal;
 use hal::HalImpl;
 
 const DEVICE: Channel = Channel::new(0);
-const VIRT_RX: Channel = Channel::new(1);
-const VIRT_TX: Channel = Channel::new(2);
+const RX: Channel = Channel::new(1);
+const TX: Channel = Channel::new(2);
 
 pub const VIRTIO_NET_MMIO_OFFSET: usize = 0xe00;
 pub const VIRTIO_NET_DRIVER_DMA_SIZE: usize = 0x200_000;
@@ -51,7 +51,7 @@ fn init() -> HandlerImpl {
 
     let mut dev = {
         let header = NonNull::new(
-            (*var!(virtio_net_mmio_vaddr: usize = 0) + VIRTIO_NET_MMIO_OFFSET)
+            (*var!(eth_regs: usize = 0) + VIRTIO_NET_MMIO_OFFSET)
                 as *mut VirtIOHeader,
         )
         .unwrap();
@@ -62,18 +62,18 @@ fn init() -> HandlerImpl {
 
     let client_region = unsafe {
         ExternallySharedRef::<'static, _>::new(
-            memory_region_symbol!(virtio_net_client_dma_vaddr: *mut [u8], n = VIRTIO_NET_CLIENT_DMA_SIZE),
+            memory_region_symbol!(buffer_data_vaddr: *mut [u8], n = VIRTIO_NET_CLIENT_DMA_SIZE),
         )
     };
 
     let rx_queue = QueueHandle::<'_>::new(
-        unsafe { ExternallySharedRef::new(memory_region_symbol!(virtio_net_rx_free: *mut _)) },
-        unsafe { ExternallySharedRef::new(memory_region_symbol!(virtio_net_rx_active: *mut _)) },
+        unsafe { ExternallySharedRef::new(memory_region_symbol!(rx_free: *mut _)) },
+        unsafe { ExternallySharedRef::new(memory_region_symbol!(rx_active: *mut _)) },
     );
 
     let tx_queue = QueueHandle::<'_>::new(
-        unsafe { ExternallySharedRef::new(memory_region_symbol!(virtio_net_tx_free: *mut _)) },
-        unsafe { ExternallySharedRef::new(memory_region_symbol!(virtio_net_tx_active: *mut _)) },
+        unsafe { ExternallySharedRef::new(memory_region_symbol!(tx_free: *mut _)) },
+        unsafe { ExternallySharedRef::new(memory_region_symbol!(tx_active: *mut _)) },
     );
 
     dev.ack_interrupt();
@@ -98,8 +98,9 @@ impl Handler for HandlerImpl {
     type Error = Infallible;
 
     fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
+        debug_println!("got notified from {:?}", channel);
         match channel {
-            DEVICE | VIRT_RX | VIRT_TX => {
+            DEVICE | RX | TX => {
                 let mut notify_rx = false;
 
                 while self.dev.can_recv() && !self.rx_queue.free_mut().is_empty() {
@@ -124,7 +125,7 @@ impl Handler for HandlerImpl {
                 }
 
                 if notify_rx {
-                    VIRT_RX.notify();
+                    RX.notify();
                 }
 
                 let mut notify_tx = false;
@@ -149,7 +150,7 @@ impl Handler for HandlerImpl {
                 }
 
                 if notify_tx {
-                    VIRT_TX.notify();
+                    TX.notify();
                 }
 
                 self.dev.ack_interrupt();

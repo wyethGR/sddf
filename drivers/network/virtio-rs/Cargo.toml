@@ -11,7 +11,7 @@ sel4 = { git = "https://github.com/seL4/rust-sel4" }
 sel4-externally-shared = { git = "https://github.com/seL4/rust-sel4", features = ["unstable"] }
 sel4-immediate-sync-once-cell = { git = "https://github.com/seL4/rust-sel4" }
 sel4-logging = { git = "https://github.com/seL4/rust-sel4" }
-sel4-microkit = { git = "https://github.com/seL4/rust-sel4", default-features = false }
+sel4-microkit = { git = "https://github.com/Ivan-Velickovic/rust-sel4", branch="sddf", default-features = false }
 sel4-microkit-message = { git = "https://github.com/seL4/rust-sel4" }
 sel4-sync = { git = "https://github.com/seL4/rust-sel4" }
 sel4-bounce-buffer-allocator = { git = "https://github.com/seL4/rust-sel4" }

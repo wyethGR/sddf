@@ -463,15 +463,25 @@ version = "0.1.0"
 dependencies = [
  "log",
  "sddf-net-queue",
- "sel4",
+ "sel4 0.1.0 (git+https://github.com/seL4/rust-sel4)",
  "sel4-bounce-buffer-allocator",
  "sel4-externally-shared",
- "sel4-immediate-sync-once-cell",
+ "sel4-immediate-sync-once-cell 0.1.0 (git+https://github.com/seL4/rust-sel4)",
  "sel4-logging",
  "sel4-microkit",
  "sel4-microkit-message",
- "sel4-sync",
+ "sel4-sync 0.1.0 (git+https://github.com/seL4/rust-sel4)",
  "virtio-drivers",
+]
+
+[[package]]
+name = "sel4"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "cfg-if",
+ "sel4-config 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-sys 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
 ]
 
 [[package]]
@@ -480,8 +490,8 @@ version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
 dependencies = [
  "cfg-if",
- "sel4-config",
- "sel4-sys",
+ "sel4-config 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-sys 0.1.0 (git+https://github.com/seL4/rust-sel4)",
 ]
 
 [[package]]
@@ -495,7 +505,22 @@ dependencies = [
 [[package]]
 name = "sel4-bitfield-ops"
 version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+
+[[package]]
+name = "sel4-bitfield-ops"
+version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+
+[[package]]
+name = "sel4-bitfield-parser"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "pest",
+ "pest_derive",
+ "regex",
+]
 
 [[package]]
 name = "sel4-bitfield-parser"
@@ -518,17 +543,44 @@ dependencies = [
 [[package]]
 name = "sel4-build-env"
 version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+
+[[package]]
+name = "sel4-build-env"
+version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+
+[[package]]
+name = "sel4-config"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "sel4-config-data 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-config-generic 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-config-macros 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-rustfmt-helper 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+]
 
 [[package]]
 name = "sel4-config"
 version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
 dependencies = [
- "sel4-config-data",
- "sel4-config-generic",
- "sel4-config-macros",
- "sel4-rustfmt-helper",
+ "sel4-config-data 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-config-generic 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-config-macros 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-rustfmt-helper 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+]
+
+[[package]]
+name = "sel4-config-data"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "lazy_static",
+ "sel4-build-env 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-config-generic-types 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "serde_json",
 ]
 
 [[package]]
@@ -537,9 +589,21 @@ version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
 dependencies = [
  "lazy_static",
- "sel4-build-env",
- "sel4-config-generic-types",
+ "sel4-build-env 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-config-generic-types 0.1.0 (git+https://github.com/seL4/rust-sel4)",
  "serde_json",
+]
+
+[[package]]
+name = "sel4-config-generic"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "fallible-iterator",
+ "proc-macro2",
+ "quote",
+ "sel4-config-generic-types 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -550,8 +614,16 @@ dependencies = [
  "fallible-iterator",
  "proc-macro2",
  "quote",
- "sel4-config-generic-types",
+ "sel4-config-generic-types 0.1.0 (git+https://github.com/seL4/rust-sel4)",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "sel4-config-generic-types"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -565,16 +637,25 @@ dependencies = [
 [[package]]
 name = "sel4-config-macros"
 version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "sel4-config-data 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-config-generic 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+]
+
+[[package]]
+name = "sel4-config-macros"
+version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
 dependencies = [
- "sel4-config-data",
- "sel4-config-generic",
+ "sel4-config-data 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-config-generic 0.1.0 (git+https://github.com/seL4/rust-sel4)",
 ]
 
 [[package]]
 name = "sel4-dlmalloc"
 version = "0.1.0"
-source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 dependencies = [
  "dlmalloc",
  "lock_api",
@@ -583,7 +664,7 @@ dependencies = [
 [[package]]
 name = "sel4-elf-header"
 version = "0.1.0"
-source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 
 [[package]]
 name = "sel4-externally-shared"
@@ -599,7 +680,17 @@ dependencies = [
 [[package]]
 name = "sel4-immediate-sync-once-cell"
 version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+
+[[package]]
+name = "sel4-immediate-sync-once-cell"
+version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+
+[[package]]
+name = "sel4-immutable-cell"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 
 [[package]]
 name = "sel4-immutable-cell"
@@ -609,7 +700,7 @@ source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb3744
 [[package]]
 name = "sel4-initialize-tls"
 version = "0.1.0"
-source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 dependencies = [
  "cfg-if",
 ]
@@ -625,18 +716,27 @@ dependencies = [
 [[package]]
 name = "sel4-microkit"
 version = "0.1.0"
-source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 dependencies = [
  "cfg-if",
- "sel4",
+ "sel4 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
  "sel4-dlmalloc",
- "sel4-immediate-sync-once-cell",
- "sel4-microkit-base",
+ "sel4-immediate-sync-once-cell 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-microkit-base 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
  "sel4-microkit-macros",
  "sel4-panicking",
  "sel4-panicking-env",
  "sel4-runtime-common",
- "sel4-sync",
+ "sel4-sync 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+]
+
+[[package]]
+name = "sel4-microkit-base"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "sel4 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-immutable-cell 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
 ]
 
 [[package]]
@@ -644,14 +744,14 @@ name = "sel4-microkit-base"
 version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
 dependencies = [
- "sel4",
- "sel4-immutable-cell",
+ "sel4 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-immutable-cell 0.1.0 (git+https://github.com/seL4/rust-sel4)",
 ]
 
 [[package]]
 name = "sel4-microkit-macros"
 version = "0.1.0"
-source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -663,7 +763,7 @@ name = "sel4-microkit-message"
 version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
 dependencies = [
- "sel4-microkit-base",
+ "sel4-microkit-base 0.1.0 (git+https://github.com/seL4/rust-sel4)",
  "sel4-microkit-message-types",
  "serde",
 ]
@@ -682,30 +782,38 @@ dependencies = [
 [[package]]
 name = "sel4-panicking"
 version = "0.1.0"
-source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 dependencies = [
  "cfg-if",
  "rustc_version",
- "sel4-immediate-sync-once-cell",
+ "sel4-immediate-sync-once-cell 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
  "sel4-panicking-env",
 ]
 
 [[package]]
 name = "sel4-panicking-env"
 version = "0.1.0"
-source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 
 [[package]]
 name = "sel4-runtime-common"
 version = "0.1.0"
-source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
 dependencies = [
  "cfg-if",
- "sel4",
+ "sel4 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
  "sel4-elf-header",
  "sel4-initialize-tls",
  "sel4-panicking-env",
  "unwinding",
+]
+
+[[package]]
+name = "sel4-rustfmt-helper"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "which",
 ]
 
 [[package]]
@@ -719,11 +827,41 @@ dependencies = [
 [[package]]
 name = "sel4-sync"
 version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "lock_api",
+ "sel4 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-immediate-sync-once-cell 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+]
+
+[[package]]
+name = "sel4-sync"
+version = "0.1.0"
 source = "git+https://github.com/seL4/rust-sel4#671c7314385daadfbc03cfa43ccb37442fb11e6a"
 dependencies = [
  "lock_api",
- "sel4",
- "sel4-immediate-sync-once-cell",
+ "sel4 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-immediate-sync-once-cell 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+]
+
+[[package]]
+name = "sel4-sys"
+version = "0.1.0"
+source = "git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf#572e93ca49bfa7137bd654e1256755335500c8bc"
+dependencies = [
+ "bindgen",
+ "glob",
+ "log",
+ "proc-macro2",
+ "quote",
+ "sel4-bitfield-ops 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-bitfield-parser 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-build-env 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-config 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-config-data 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "sel4-rustfmt-helper 0.1.0 (git+https://github.com/Ivan-Velickovic/rust-sel4?branch=sddf)",
+ "syn 1.0.109",
+ "xmltree",
 ]
 
 [[package]]
@@ -736,12 +874,12 @@ dependencies = [
  "log",
  "proc-macro2",
  "quote",
- "sel4-bitfield-ops",
- "sel4-bitfield-parser",
- "sel4-build-env",
- "sel4-config",
- "sel4-config-data",
- "sel4-rustfmt-helper",
+ "sel4-bitfield-ops 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-bitfield-parser 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-build-env 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-config 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-config-data 0.1.0 (git+https://github.com/seL4/rust-sel4)",
+ "sel4-rustfmt-helper 0.1.0 (git+https://github.com/seL4/rust-sel4)",
  "syn 1.0.109",
  "xmltree",
 ]
