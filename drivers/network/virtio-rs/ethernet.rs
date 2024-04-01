@@ -105,6 +105,8 @@ impl Handler for HandlerImpl {
             DEVICE | RX | TX => {
                 let mut notify_rx = false;
 
+                debug_println!("ETHERNET can recv: {}", self.dev.can_recv());
+
                 while self.dev.can_recv() && !self.rx_queue.free_mut().is_empty() {
                     let rx_buf = self.dev.receive().unwrap();
                     let desc = self.rx_queue.free_mut().dequeue().unwrap();
@@ -151,10 +153,12 @@ impl Handler for HandlerImpl {
                     };
                     debug_println!("ETHERNET: descriptor at 0x{:x}", desc.io_or_offset());
                     let mut tx_buf = self.dev.new_tx_buffer(buf_range.len());
-                    self.client_region
-                        .as_ptr()
-                        .index(buf_range)
-                        .copy_into_slice(tx_buf.packet_mut());
+                    let ptr = self.client_region.as_ptr().index(buf_range):
+                    TxBuffer::from(ptr);
+                    // self.client_region
+                    //     .as_ptr()
+                    //     .index(buf_range)
+                    //     .copy_into_slice(tx_buf.packet_mut());
                     self.dev.send(tx_buf).unwrap();
                     self.tx_queue
                         .free_mut()
