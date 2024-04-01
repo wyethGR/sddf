@@ -48,7 +48,7 @@ impl Descriptor {
     }
 }
 
-pub const QUEUE_SIZE: usize = 512;
+pub const QUEUE_SIZE: usize = 512 * 3;
 
 pub struct QueueHandle<'a, T = Descriptor> {
     free: Queue<'a, T>,
@@ -108,12 +108,12 @@ impl<'a, T: Copy> Queue<'a, T> {
         Self::SIZE - 1
     }
 
-    fn tail(&mut self) -> ExternallySharedPtr<'_, u16> {
+    pub fn tail(&mut self) -> ExternallySharedPtr<'_, u16> {
         let ptr = self.queue.as_mut_ptr();
         map_field!(ptr.tail)
     }
 
-    fn head(&mut self) -> ExternallySharedPtr<'_, u16> {
+    pub fn head(&mut self) -> ExternallySharedPtr<'_, u16> {
         let ptr = self.queue.as_mut_ptr();
         map_field!(ptr.head)
     }
@@ -125,11 +125,15 @@ impl<'a, T: Copy> Queue<'a, T> {
     }
 
     pub fn is_empty(&mut self) -> bool {
-        (self.tail().read() - self.head().read()) % Self::SIZE as u16 == 0
+        (self.tail().read() - self.head().read()) == 0
     }
 
     pub fn is_full(&mut self) -> bool {
         (self.tail().read() + 1 - self.head().read()) % Self::SIZE as u16 == 0
+    }
+
+    pub fn size(&mut self) -> usize {
+        (self.tail().read() - self.head().read()) as usize
     }
 
     fn residue(&self, index: u16) -> usize {

@@ -29,8 +29,8 @@ mod hal;
 use hal::HalImpl;
 
 const DEVICE: Channel = Channel::new(0);
-const RX: Channel = Channel::new(1);
-const TX: Channel = Channel::new(2);
+const TX: Channel = Channel::new(1);
+const RX: Channel = Channel::new(2);
 
 pub const VIRTIO_NET_MMIO_OFFSET: usize = 0xe00;
 pub const VIRTIO_NET_DRIVER_DMA_SIZE: usize = 0x200_000;
@@ -98,7 +98,7 @@ impl Handler for HandlerImpl {
     type Error = Infallible;
 
     fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
-        debug_println!("got notified from {:?}", channel);
+        debug_println!("==== ETHERNET: got notified from {:?}", channel);
         match channel {
             DEVICE | RX | TX => {
                 let mut notify_rx = false;
@@ -122,6 +122,7 @@ impl Handler for HandlerImpl {
                         .enqueue(desc)
                         .unwrap();
                     notify_rx = true;
+                    debug_println!("got RX packet!");
                 }
 
                 if notify_rx {
@@ -130,12 +131,23 @@ impl Handler for HandlerImpl {
 
                 let mut notify_tx = false;
 
-                while !self.tx_queue.free_mut().is_empty() && self.dev.can_send() {
-                    let desc = self.tx_queue.free_mut().dequeue().unwrap();
+                if !self.dev.can_send() {
+                    debug_println!("==== ETHERNET: can not send");
+                } else {
+                    debug_println!("==== ETHERNET: can send!");
+                }
+
+                debug_println!("=== ETHERNET:, tx_queue size: {}", self.tx_queue.active_mut().size());
+                debug_println!("=== ETHERNET:, tx_queue tail: {}", self.tx_queue.active_mut().tail().read());
+                debug_println!("=== ETHERNET:, tx_queue head: {}", self.tx_queue.active_mut().head().read());
+                while !self.tx_queue.active_mut().is_empty() && self.dev.can_send() {
+                    debug_println!("here!\n");
+                    let desc = self.tx_queue.active_mut().dequeue().unwrap();
                     let buf_range = {
                         let start = desc.io_or_offset();
                         start..start + usize::try_from(desc.len()).unwrap()
                     };
+                    debug_println!("ETHERNET: descriptor at 0x{:x}", desc.io_or_offset());
                     let mut tx_buf = self.dev.new_tx_buffer(buf_range.len());
                     self.client_region
                         .as_ptr()
@@ -143,10 +155,11 @@ impl Handler for HandlerImpl {
                         .copy_into_slice(tx_buf.packet_mut());
                     self.dev.send(tx_buf).unwrap();
                     self.tx_queue
-                        .active_mut()
+                        .free_mut()
                         .enqueue(desc)
                         .unwrap();
                     notify_tx = true;
+                    debug_println!("got TX packet!");
                 }
 
                 if notify_tx {

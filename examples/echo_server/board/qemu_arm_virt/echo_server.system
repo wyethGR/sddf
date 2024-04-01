@@ -67,7 +67,7 @@
             <map mr="virtio_net_driver_dma" vaddr="0x7_000_000_000" perms="rw" cached="true" setvar_vaddr="virtio_net_driver_dma_vaddr" />
             <setvar symbol="virtio_net_driver_dma_paddr" region_paddr="virtio_net_driver_dma" />
 
-            <irq irq="72" id="0" /> <!--> ethernet interrupt -->
+            <irq irq="72" id="0" trigger="edge" /> <!--> ethernet interrupt -->
         </protection_domain>
 
         <protection_domain name="virt_rx" priority="99" pp="true" id="2">

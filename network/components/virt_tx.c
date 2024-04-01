@@ -68,6 +68,7 @@ void tx_provide(void)
                 cache_clean(buffer.io_or_offset + state.buffer_region_vaddrs[client], buffer.io_or_offset + state.buffer_region_vaddrs[client] + buffer.len);
 
                 buffer.io_or_offset = buffer.io_or_offset + state.buffer_region_paddrs[client];
+                sddf_dprintf("VIRT_TX|INFO: enqueueing with io_or_offset of 0x%lx\n", buffer.io_or_offset);
                 err = net_enqueue_active(&state.tx_queue_drv, buffer);
                 assert(!err);
                 enqueued = true;
@@ -85,6 +86,8 @@ void tx_provide(void)
 
     if (enqueued && net_require_signal_active(&state.tx_queue_drv)) {
         net_cancel_signal_active(&state.tx_queue_drv);
+        sddf_dprintf("VIRT_TX|INFO: notifying driver, size of queue: 0x%lx\n", net_queue_size(&state.tx_queue_drv.active));
+        sddf_dprintf("VIRT_TX|INFO: active->tail: 0x%lx, active->head: 0x%lx\n", state.tx_queue_drv.active->tail, state.tx_queue_drv.active->head);
         microkit_notify_delayed(DRIVER);
     }
 }

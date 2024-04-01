@@ -40,6 +40,10 @@ typedef struct net_queue_handle {
     uint32_t size;
 } net_queue_handle_t;
 
+static inline bool net_queue_size(net_queue_t *queue) {
+    return queue->tail - queue->head;
+}
+
 /**
  * Check if the free queue is empty.
  *
