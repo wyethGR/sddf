@@ -79,6 +79,8 @@ fn init() -> HandlerImpl {
     dev.ack_interrupt();
     DEVICE.irq_ack().unwrap();
 
+    debug_println!("============ mac_address: {:?}", dev.mac_address());
+
     HandlerImpl {
         dev,
         client_region,
