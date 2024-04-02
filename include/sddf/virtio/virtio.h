@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <sddf/util/printf.h>
 
 #define VIRTIO_VERSION (0x2)
 
@@ -15,6 +16,18 @@
 #define VIRTIO_DEVICE_STATUS_FEATURES_OK (0x8)
 #define VIRTIO_DEVICE_STATUS_DRIVER_OK (0x4)
 #define VIRTIO_DEVICE_STATUS_DRIVER_RESET (0x40)
+
+#define VIRTIO_F_INDIRECT_DESC 28
+#define VIRTIO_F_EVENT_IDX 29
+#define VIRTIO_F_VERSION_1 32
+#define VIRTIO_F_ACCESS_PLATFORM 33
+#define VIRTIO_F_RING_PACKED 34
+#define VIRTIO_F_IN_ORDER 35
+#define VIRTIO_F_ORDER_PLATFORM 36
+#define VIRTIO_F_SR_IOV 37
+#define VIRTIO_F_NOTIFICATION_DATA 38
+#define VIRTIO_F_NOTIF_CONFIG_DATA 39
+#define VIRTIO_F_RING_RESET 40
 
 typedef enum {
     VIRTIO_DEVICE_ID_NET = 0x1,
@@ -67,4 +80,40 @@ bool virtio_mmio_check_device_id(virtio_mmio_regs_t *regs, virtio_device_id_t id
 
 uint32_t virtio_mmio_version(virtio_mmio_regs_t *regs){
     return regs->Version;
+}
+
+void virtio_print_reserved_feature_bits(uint64_t feature) {
+    if (feature & ((uint64_t)1 << VIRTIO_F_INDIRECT_DESC)) {
+        sddf_dprintf("VIRTIO_F_INDIRECT_DESC\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_EVENT_IDX)) {
+        sddf_dprintf("VIRTIO_F_EVENT_IDX\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_VERSION_1)) {
+        sddf_dprintf("VIRTIO_F_VERSION_1\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_ACCESS_PLATFORM)) {
+        sddf_dprintf("VIRTIO_F_ACCESS_PLATFORM\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_RING_PACKED)) {
+        sddf_dprintf("VIRTIO_F_RING_PACKED\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_IN_ORDER)) {
+        sddf_dprintf("VIRTIO_F_IN_ORDER\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_ORDER_PLATFORM)) {
+        sddf_dprintf("VIRTIO_F_ORDER_PLATFORM\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_SR_IOV)) {
+        sddf_dprintf("VIRTIO_F_SR_IOV\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_NOTIFICATION_DATA)) {
+        sddf_dprintf("VIRTIO_F_NOTIFICATION_DATA\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_NOTIF_CONFIG_DATA)) {
+        sddf_dprintf("VIRTIO_F_NOTIF_CONFIG_DATA\n");
+    }
+    if (feature & ((uint64_t)1 << VIRTIO_F_RING_RESET)) {
+        sddf_dprintf("VIRTIO_F_RING_RESET\n");
+    }
 }

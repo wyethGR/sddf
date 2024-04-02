@@ -1,6 +1,13 @@
 /*
- * Copyright 2023, UNSW
+ * Copyright 2024, UNSW
  * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+/*
+ * Main things to figre out are now:
+ * sort out this header packet non-sense, do we enqueue extra virtio entries for the headers?
+ * do we just let the headers be placed in the DMA data region?
+ * after we figure that out, we can finish off rx_provide, tx_provide, rx_return and tx_return
  */
 
 #include <stdbool.h>
@@ -240,9 +247,11 @@ static void eth_setup(void)
     LOG_DRIVER("feature low: 0x%lx\n", feature_low);
     regs->DeviceFeaturesSel = 1;
     uint32_t feature_high = regs->DeviceFeatures;
+    LOG_DRIVER("feature high: 0x%lx\n", feature_high);
     uint64_t feature = feature_low | ((uint64_t)feature_high << 32);
     LOG_DRIVER("feature: 0x%lx\n", feature);
     print_feature_bits(feature);
+    virtio_print_reserved_feature_bits(feature);
 
     regs->DriverFeatures = 0;
     regs->DriverFeaturesSel = 1;
