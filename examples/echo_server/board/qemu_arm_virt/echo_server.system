@@ -5,7 +5,7 @@
 
     <!-- driver/device queue mechanism -->
     <memory_region name="hw_ring_buffer" size="0x10_000" />
-    <memory_region name="virtio_headers" size="0x30_000" />
+    <memory_region name="virtio_net_headers" size="0x10_000" />
 
     <!-- DMA and virtualised DMA regions -->
     <memory_region name="rx_buffer_data_region" size="0x200_000" page_size="0x200_000" />
@@ -65,13 +65,14 @@
             <map mr="tx_active_drv" vaddr="0x2_a00_000" perms="rw" cached="true" setvar_vaddr="tx_active" />
 
             <map mr="hw_ring_buffer" vaddr="0x2_200_000" perms="rw" cached="false" setvar_vaddr="hw_ring_buffer_vaddr" />
-            <map mr="hw_ring_buffer" vaddr="0x4_000_000" perms="rw" cached="false" setvar_vaddr="virtio_net_headers" />
+            <map mr="virtio_net_headers" vaddr="0x4_000_000" perms="rw" cached="false" setvar_vaddr="virtio_net_headers_vaddr" />
 
             <!-- <map mr="virtio_net_driver_dma" vaddr="0x7_000_000_000" perms="rw" cached="true" setvar_vaddr="virtio_net_driver_dma_vaddr" /> -->
             <!-- <setvar symbol="virtio_net_driver_dma_paddr" region_paddr="virtio_net_driver_dma" /> -->
 
             <irq irq="79" id="0" trigger="edge" /> <!--> ethernet interrupt -->
             <setvar symbol="hw_ring_buffer_paddr" region_paddr="hw_ring_buffer" />
+            <setvar symbol="virtio_net_headers_paddr" region_paddr="virtio_net_headers" />
         </protection_domain>
 
         <protection_domain name="virt_rx" priority="99" pp="true" id="2">

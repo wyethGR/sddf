@@ -58,33 +58,33 @@ uintptr_t virtio_net_headers_paddr;
 
 static void rx_provide()
 {
-    bool reprocess = true;
-    while (reprocess) {
-        while (!hw_ring_full(&rx, RX_COUNT) && !net_queue_empty_free(&rx_queue)) {
-            net_buff_desc_t buffer;
-            int err = net_dequeue_free(&rx_queue, &buffer);
-            assert(!err);
+    // bool reprocess = true;
+    // while (reprocess) {
+    //     while (!hw_ring_full(&rx, RX_COUNT) && !net_queue_empty_free(&rx_queue)) {
+    //         net_buff_desc_t buffer;
+    //         int err = net_dequeue_free(&rx_queue, &buffer);
+    //         assert(!err);
 
-            // We now need to populate the header, as well as the packet
+    //         // We now need to populate the header, as well as the packet
 
-            // uint32_t cntl = (MAX_RX_FRAME_SZ << DESC_RXCTRL_SIZE1SHFT) & DESC_RXCTRL_SIZE1MASK;
-            // if (rx.tail + 1 == RX_COUNT) cntl |= DESC_RXCTRL_RXRINGEND;
+    //         // uint32_t cntl = (MAX_RX_FRAME_SZ << DESC_RXCTRL_SIZE1SHFT) & DESC_RXCTRL_SIZE1MASK;
+    //         // if (rx.tail + 1 == RX_COUNT) cntl |= DESC_RXCTRL_RXRINGEND;
 
-            // rx.descr_mdata[rx.tail] = buffer;
-            // update_ring_slot(&rx, rx.tail, DESC_RXSTS_OWNBYDMA, cntl, buffer.io_or_offset, 0);
-            // eth_dma->rxpolldemand = POLL_DATA;
+    //         // rx.descr_mdata[rx.tail] = buffer;
+    //         // update_ring_slot(&rx, rx.tail, DESC_RXSTS_OWNBYDMA, cntl, buffer.io_or_offset, 0);
+    //         // eth_dma->rxpolldemand = POLL_DATA;
 
-            // rx.tail = (rx.tail + 1) % RX_COUNT;
-        }
+    //         // rx.tail = (rx.tail + 1) % RX_COUNT;
+    //     }
 
-        net_request_signal_free(&rx_queue);
-        reprocess = false;
+    //     net_request_signal_free(&rx_queue);
+    //     reprocess = false;
 
-        if (!net_queue_empty_free(&rx_queue) && !hw_ring_full(&rx, RX_COUNT)) {
-            net_cancel_signal_free(&rx_queue);
-            reprocess = true;
-        }
-    }
+    //     if (!net_queue_empty_free(&rx_queue) && !hw_ring_full(&rx, RX_COUNT)) {
+    //         net_cancel_signal_free(&rx_queue);
+    //         reprocess = true;
+    //     }
+    // }
 }
 
 static void rx_return(void)
@@ -265,7 +265,7 @@ static void eth_setup(void)
     rx_virtq.avail = hw_ring_buffer_vaddr + rx_avail_off;
     rx_virtq.used = hw_ring_buffer_vaddr + rx_used_off;
 
-    for (int i = 0; i < RX_COUNT; i += 2) {
+    for (int i = 0; i < RX_COUNT - 1; i += 2) {
         net_buff_desc_t desc;
         int err = net_dequeue_free(&rx_queue, &desc);
         assert(!err);
@@ -273,18 +273,18 @@ static void eth_setup(void)
         size_t virtio_desc_header = i;
         size_t virtio_desc_packet = i + 1;
 
-        virtio_net_hdr_t *header = virtio_net_headers[virtio_desc_header];
-        header->packet = desc.io_or_offset;
+        virtio_net_hdr_t *headers = (virtio_net_hdr_t *)virtio_net_headers_vaddr;
+        virtio_net_hdr_t *header = &headers[virtio_desc_header];
 
-        rx_virtq->desc[virtio_desc_header].addr = virtio_net_headers_paddr + sizeof(virtio_net_hdr_t) * virtio_desc_header;
-        rx_virtq->desc[virtio_desc_header].len = sizeof(virtio_net_hdr_t);
-        rx_virtq->desc[virtio_desc_header].flags = VIRTQ_DESC_F_WRITE | VIRTQ_DESC_F_NEXT;
-        rx_virtq->desc[virtio_desc_header].next = virtio_desc_packet;
+        rx_virtq.desc[virtio_desc_header].addr = virtio_net_headers_paddr + sizeof(virtio_net_hdr_t) * virtio_desc_header;
+        rx_virtq.desc[virtio_desc_header].len = sizeof(virtio_net_hdr_t);
+        rx_virtq.desc[virtio_desc_header].flags = VIRTQ_DESC_F_WRITE | VIRTQ_DESC_F_NEXT;
+        rx_virtq.desc[virtio_desc_header].next = virtio_desc_packet;
 
         // TODO: some check for whether desc.len is valid?
-        rx_virtq->desc[virtio_desc_packet].addr = desc.addr;
-        rx_virtq->desc[virtio_desc_packet].len = desc.len;
-        rx_virtq->desc[virtio_desc_packet].flags = VIRTQ_DESC_F_WRITE;
+        rx_virtq.desc[virtio_desc_packet].addr = desc.io_or_offset;
+        rx_virtq.desc[virtio_desc_packet].len = desc.len;
+        rx_virtq.desc[virtio_desc_packet].flags = VIRTQ_DESC_F_WRITE;
     }
 
     tx_virtq.num = TX_COUNT;
@@ -317,11 +317,12 @@ static void eth_setup(void)
     regs->QueueDeviceHigh = (hw_ring_buffer_paddr + tx_used_off) >> 32;
 
     // Set the DRIVER_OK status bit
-    regs->Status |= DRIVER_OK;
+    regs->Status |= VIRTIO_DEVICE_STATUS_DRIVER_OK;
 }
 
 void init(void)
 {
+    LOG_DRIVER("sizeof net header: 0x%lx\n", sizeof(virtio_net_hdr_t));
     eth_setup();
 
     net_queue_init(&rx_queue, (net_queue_t *)rx_free, (net_queue_t *)rx_active, RX_QUEUE_SIZE_DRIV);

@@ -59,5 +59,5 @@ typedef struct virtio_net_hdr {
     uint16_t gso_size;        /* Bytes to append to hdr_len per frame */
     uint16_t csum_start;  /* Position to start checksumming from */
     uint16_t csum_offset; /* Offset after that to place checksum */
-    uint16_t num_buffers;
+    // uint16_t num_buffers;
 } virtio_net_hdr_t;
