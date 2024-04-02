@@ -28,7 +28,7 @@ else ifeq ($(strip $(MICROKIT_BOARD)), maaxboard)
 	TIMER_DRIV_DIR := meson
 	CPU := cortex-a53
 else ifeq ($(strip $(MICROKIT_BOARD)), qemu_arm_virt)
-	ETH_DRIV_DIR := virtio-rs
+	ETH_DRIV_DIR := virtio
 	TIMER_DRIV_DIR := arm
 	CPU := cortex-a53
 else
@@ -145,12 +145,12 @@ $(BUILD_DIR)/putchar_serial.o: $(UTIL)/putchar_serial.c
 $(BUILD_DIR)/sddf_timer_client.o: FORCE
 	BUILD_DIR=$(abspath $(BUILD_DIR)) MICROKIT_INCLUDE=$(BOARD_DIR)/include make -C $(SDDF)/timer/client
 
-# $(BUILD_DIR)/eth.elf: $(addprefix $(BUILD_DIR)/, $(ETH_OBJS))
-# 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
+$(BUILD_DIR)/eth.elf: $(addprefix $(BUILD_DIR)/, $(ETH_OBJS))
+	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
-$(BUILD_DIR)/eth.elf: FORCE
-	make BUILD_DIR=$(abspath $(BUILD_DIR)) MICROKIT_INCLUDE=$(abspath $(BOARD_DIR)/include) RUST_TARGET_PATH=$(abspath support/targets) RUST_TARGET=aarch64-sel4-microkit -C $(ETHERNET_DRIVER)
-	cp $(BUILD_DIR)/sddf_net_virtio_driver.elf $(BUILD_DIR)/eth.elf
+# $(BUILD_DIR)/eth.elf: FORCE
+# 	make BUILD_DIR=$(abspath $(BUILD_DIR)) MICROKIT_INCLUDE=$(abspath $(BOARD_DIR)/include) RUST_TARGET_PATH=$(abspath support/targets) RUST_TARGET=aarch64-sel4-microkit -C $(ETHERNET_DRIVER)
+# 	cp $(BUILD_DIR)/sddf_net_virtio_driver.elf $(BUILD_DIR)/eth.elf
 
 $(BUILD_DIR)/lwip.elf: $(addprefix $(BUILD_DIR)/, $(LWIP_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
@@ -180,7 +180,17 @@ $(IMAGE_FILE) $(REPORT_FILE): $(addprefix $(BUILD_DIR)/, $(IMAGES)) $(SYSTEM_FIL
 	$(MICROKIT_TOOL) $(SYSTEM_FILE) --search-path $(BUILD_DIR) --board $(MICROKIT_BOARD) --config $(MICROKIT_CONFIG) -o $(IMAGE_FILE) -r $(REPORT_FILE)
 
 qemu: $(IMAGE_FILE)
-	$(QEMU) -machine virt,virtualization=on -cpu cortex-a53 -serial mon:stdio -device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0 -m size=2G -nographic -device virtio-net-device,netdev=netdev0,mac=02:ca:fe:f0:0d:01 -netdev user,id=netdev0
+	$(QEMU) -machine virt,virtualization=on \
+			-cpu cortex-a53 \
+			-serial mon:stdio \
+			-device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0 \
+			-m size=2G \
+			-nographic \
+			-device virtio-net-device,netdev=netdev0,mac=02:ca:fe:f0:0d:01 \
+			-netdev user,id=netdev0 \
+			-global virtio-mmio.force-legacy=false \
+			-d guest_errors \
+			-trace events=events.list
 
 .PHONY: all compile clean
 

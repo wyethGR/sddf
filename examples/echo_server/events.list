@@ -1,0 +1,6 @@
+virtio_mmio_read
+virtio_mmio_write_offset
+virtio_mmio_guest_page
+virtio_mmio_queue_write
+virtio_mmio_setting_irq
+
