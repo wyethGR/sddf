@@ -3,6 +3,9 @@
 
 #define VIRTIO_VERSION (0x2)
 
+#define VIRTIO_MMIO_IRQ_VQUEUE  (1 << 0)
+#define VIRTIO_MMIO_IRQ_CONFIG  (1 << 1)
+
 /* Note this is little endian */
 #define VIRTIO_MMIO_MAGIC_VALUE (0x74726976)
 

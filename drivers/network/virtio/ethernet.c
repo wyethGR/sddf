@@ -56,6 +56,8 @@ net_queue_handle_t tx_queue;
 uintptr_t virtio_net_headers_vaddr;
 uintptr_t virtio_net_headers_paddr;
 
+volatile virtio_mmio_regs_t *regs;
+
 static void rx_provide()
 {
     // bool reprocess = true;
@@ -101,6 +103,16 @@ static void tx_return(void)
 
 static void handle_irq()
 {
+    // LOG_DRIVER("got IRQ\n");
+    uint32_t irq_status = regs->InterruptStatus;
+    if (irq_status & VIRTIO_MMIO_IRQ_VQUEUE) {
+        // We have handed the used buffer notification
+        regs->InterruptACK = VIRTIO_MMIO_IRQ_VQUEUE;
+    }
+
+    if (irq_status & VIRTIO_MMIO_IRQ_CONFIG) {
+        LOG_DRIVER_ERR("unexpected change in configuration\n");
+    }
 }
 
 static void print_feature_bits(uint64_t features) {
@@ -186,8 +198,6 @@ static void print_feature_bits(uint64_t features) {
 
 static void eth_setup(void)
 {
-    volatile virtio_mmio_regs_t *regs = (virtio_mmio_regs_t *) (eth_regs + VIRTIO_MMIO_NET_OFFSET);
-
     // Do MMIO device init (section 4.2.3.1)
     if (!virtio_mmio_check_magic(regs)) {
         LOG_DRIVER_ERR("invalid virtIO magic value!\n");
@@ -212,6 +222,8 @@ static void eth_setup(void)
     for (int i = 0; i < 6; i++) {
         LOG_DRIVER("mac[%d]: 0x%lx\n", i, config->mac[i]);
     }
+    LOG_DRIVER("mtu: 0x%lx\n", config->mtu);
+    LOG_DRIVER("speed: 0x%lx\n", config->speed);
 
     // Do normal device initialisation (section 3.2)
 
@@ -293,8 +305,8 @@ static void eth_setup(void)
     tx_virtq.used = hw_ring_buffer_vaddr + tx_used_off;
 
     // Setup RX queue first
+    assert(regs->QueueNumMax >= RX_COUNT);
     regs->QueueSel = 0;
-    // regs->QueueNumMax = RX_COUNT;
     regs->QueueNum = RX_COUNT;
     regs->QueueReady = 1;
     regs->QueueDescLow = (hw_ring_buffer_paddr + rx_desc_off) & 0xFFFFFFFF;
@@ -305,8 +317,8 @@ static void eth_setup(void)
     regs->QueueDeviceHigh = (hw_ring_buffer_paddr + rx_used_off) >> 32;
 
     // Setup TX queue
+    assert(regs->QueueNumMax >= TX_COUNT);
     regs->QueueSel = 1;
-    // regs->QueueNumMax = TX_COUNT;
     regs->QueueNum = TX_COUNT;
     regs->QueueReady = 1;
     regs->QueueDescLow = (hw_ring_buffer_paddr + tx_desc_off) & 0xFFFFFFFF;
@@ -322,7 +334,7 @@ static void eth_setup(void)
 
 void init(void)
 {
-    LOG_DRIVER("sizeof net header: 0x%lx\n", sizeof(virtio_net_hdr_t));
+    regs = (volatile virtio_mmio_regs_t *) (eth_regs + VIRTIO_MMIO_NET_OFFSET);
     eth_setup();
 
     net_queue_init(&rx_queue, (net_queue_t *)rx_free, (net_queue_t *)rx_active, RX_QUEUE_SIZE_DRIV);
