@@ -158,7 +158,7 @@ static bool handle_mbr_reply() {
         return false;
     }
     
-    microkit_arm_vspace_invalidate(mbr_req_data.drv_addr, mbr_req_data.drv_addr + (BLK_TRANSFER_SIZE * mbr_req_data.count));
+    microkit_arm_vspace_data_invalidate(mbr_req_data.drv_addr, mbr_req_data.drv_addr + (BLK_TRANSFER_SIZE * mbr_req_data.count));
     memcpy(&mbr, (void *)mbr_req_data.drv_addr, sizeof(struct mbr));
     fsmem_free(&fsmem_data, mbr_req_data.drv_addr, mbr_req_data.count);
 
