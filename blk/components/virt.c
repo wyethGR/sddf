@@ -6,6 +6,7 @@
 #include <sddf/blk/queue.h>
 #include <sddf/blk/mbr.h>
 #include <sddf/blk/util.h>
+#include <sddf/util/cache.h>
 #include <sddf/util/printf.h>
 
 #define DEBUG_BLK_VIRT
@@ -157,7 +158,7 @@ static bool handle_mbr_reply() {
         return false;
     }
     
-    seL4_ARM_VSpace_Invalidate_Data(3, mbr_req_data.drv_addr, mbr_req_data.drv_addr + (BLK_TRANSFER_SIZE * mbr_req_data.count));
+    microkit_arm_vspace_invalidate(mbr_req_data.drv_addr, mbr_req_data.drv_addr + (BLK_TRANSFER_SIZE * mbr_req_data.count));
     memcpy(&mbr, (void *)mbr_req_data.drv_addr, sizeof(struct mbr));
     fsmem_free(&fsmem_data, mbr_req_data.drv_addr, mbr_req_data.count);
 
@@ -227,7 +228,7 @@ static void handle_driver() {
             switch(cli_data.code) {
                 case READ_BLOCKS:
                     // Invalidate cache
-                    seL4_ARM_VSpace_Invalidate_Data(3, cli_data.drv_addr, cli_data.drv_addr + (BLK_TRANSFER_SIZE * cli_data.count));
+                    microkit_arm_vspace_data_invalidate(cli_data.drv_addr, cli_data.drv_addr + (BLK_TRANSFER_SIZE * cli_data.count));
                     // Copy data buffers from driver to client
                     memcpy((void *)cli_data.cli_addr, (void *)cli_data.drv_addr, BLK_TRANSFER_SIZE * cli_data.count);
                     blk_enqueue_resp(&h, SUCCESS, drv_success_count, cli_data.cli_req_id);
@@ -304,7 +305,7 @@ static void handle_client(int cli_id) {
                 // Copy data buffers from client to driver
                 memcpy((void *)drv_addr, (void *)cli_addr, BLK_TRANSFER_SIZE * cli_count);
                 // Flush the cache
-                seL4_ARM_VSpace_Clean_Data(3, drv_addr, drv_addr + (BLK_TRANSFER_SIZE * cli_count));
+                cache_clean(drv_addr, drv_addr + (BLK_TRANSFER_SIZE * cli_count));
                 break;
             case FLUSH:
             case BARRIER:
