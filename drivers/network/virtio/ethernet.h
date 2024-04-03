@@ -1,5 +1,8 @@
 #include <stdint.h>
 
+#define VIRTIO_NET_RX_QUEUE 0
+#define VIRTIO_NET_TX_QUEUE 1
+
 /* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_CSUM   0   /* Host handles pkts w/ partial csum */
 #define VIRTIO_NET_F_GUEST_CSUM 1   /* Guest handles pkts w/ partial csum */

@@ -55,6 +55,7 @@ struct virtq_desc {
 
 struct virtq_avail {
         uint16_t flags;
+        /* Where the driver should put the next descriptor entry in the ring, module the queue size. */
         uint16_t idx;
         uint16_t ring[];
         /* Only if VIRTIO_F_EVENT_IDX: uint16_t used_event; */
@@ -76,11 +77,15 @@ struct virtq_used {
 };
 
 struct virtq {
-        unsigned int num;
+    unsigned int num;
 
-        struct virtq_desc *desc;
-        struct virtq_avail *avail;
-        struct virtq_used *used;
+    struct virtq_desc *desc;
+    struct virtq_avail *avail;
+    struct virtq_used *used;
+
+    /* Everything below here is custom fields we have added for tracking state. */
+    /* Index of next free descriptor entry */
+    uint16_t desc_free;
 };
 
 static inline int virtq_need_event(uint16_t event_idx, uint16_t new_idx, uint16_t old_idx)
