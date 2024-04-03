@@ -21,16 +21,6 @@
 
 #include "ethernet.h"
 
-#define DEBUG_DRIVER
-
-#ifdef DEBUG_DRIVER
-#define LOG_DRIVER(...) do{ sddf_dprintf("ETH DRIVER|INFO: "); sddf_dprintf(__VA_ARGS__); }while(0)
-#else
-#define LOG_DRIVER(...) do{}while(0)
-#endif
-
-#define LOG_DRIVER_ERR(...) do{ sddf_printf("ETH DRIVER|ERROR: "); sddf_printf(__VA_ARGS__); }while(0)
-
 #define VIRTIO_MMIO_NET_OFFSET (0xe00)
 
 #define IRQ_CH 0
@@ -60,6 +50,7 @@ net_queue_handle_t tx_queue;
 
 uintptr_t virtio_net_headers_vaddr;
 uintptr_t virtio_net_headers_paddr;
+virtio_net_hdr_t *virtio_net_headers;
 
 volatile virtio_mmio_regs_t *regs;
 
@@ -101,6 +92,26 @@ static void tx_provide(void)
             /* We should not run out of descriptors assuming that the avail ring is not full. */
             assert(desc_idx < tx_virtq.num);
             tx_virtq.avail->ring[tx_virtq.avail->idx] = desc_idx;
+            tx_virtq.desc_free++;
+
+            virtio_net_hdr_t *hdr = &virtio_net_headers[desc_idx];
+            hdr->flags = 0;
+            hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
+            hdr->hdr_len = 0;  /* not used unless we have segmentation offload */
+            hdr->gso_size = 0; /* same */
+            hdr->csum_start = 0;
+            hdr->csum_offset = 0;
+            tx_virtq.desc[desc_idx].addr = virtio_net_headers_paddr + (desc_idx * sizeof(virtio_net_hdr_t));
+            tx_virtq.desc[desc_idx].len = sizeof(virtio_net_hdr_t);
+            tx_virtq.desc[desc_idx].next = tx_virtq.desc_free;
+            tx_virtq.desc[desc_idx].flags = VIRTQ_DESC_F_NEXT;
+
+            LOG_DRIVER("header desc_idx: 0x%lx addr: 0x%lx, len: 0x%lx, next: 0x%lx\n", desc_idx,
+                tx_virtq.desc[desc_idx].addr, tx_virtq.desc[desc_idx].len, tx_virtq.desc[desc_idx].next);
+
+            desc_idx = tx_virtq.desc_free;
+            /* We should not run out of descriptors assuming that the avail ring is not full. */
+            assert(desc_idx < tx_virtq.num);
             tx_virtq.desc_free++;
 
             tx_virtq.desc[desc_idx].addr = buffer.io_or_offset;
@@ -169,87 +180,6 @@ static void handle_irq()
     }
 }
 
-static void print_feature_bits(uint64_t features) {
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_CSUM)) {
-        LOG_DRIVER("    VIRTIO_NET_F_CSUM\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_CSUM)) {
-        LOG_DRIVER("    VIRTIO_NET_F_GUEST_CSUM\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
-        LOG_DRIVER("    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_MTU)) {
-        LOG_DRIVER("    VIRTIO_NET_F_MTU\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_TSO4)) {
-        LOG_DRIVER("    VIRTIO_NET_F_GUEST_TSO4\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_TSO6)) {
-        LOG_DRIVER("    VIRTIO_NET_F_GUEST_TSO6\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_ECN)) {
-        LOG_DRIVER("    VIRTIO_NET_F_GUEST_ECN\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_UFO)) {
-        LOG_DRIVER("    VIRTIO_NET_F_GUEST_UFO\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_HOST_TSO4)) {
-        LOG_DRIVER("    VIRTIO_NET_F_HOST_TSO4\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_HOST_TSO6)) {
-        LOG_DRIVER("    VIRTIO_NET_F_HOST_TSO6\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        LOG_DRIVER("    VIRTIO_NET_F_MRG_RXBUF\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_STATUS)) {
-        LOG_DRIVER("    VIRTIO_NET_F_STATUS\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_VQ)) {
-        LOG_DRIVER("    VIRTIO_NET_F_CTRL_VQ\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_RX)) {
-        LOG_DRIVER("    VIRTIO_NET_F_CTRL_RX\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_VLAN)) {
-        LOG_DRIVER("    VIRTIO_NET_F_CTRL_VLAN\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_RX_EXTRA)) {
-        LOG_DRIVER("    VIRTIO_NET_F_CTRL_RX_EXTRA\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_ANNOUNCE)) {
-        LOG_DRIVER("    VIRTIO_NET_F_GUEST_ANNOUNCE\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_MQ)) {
-        LOG_DRIVER("    VIRTIO_NET_F_MQ\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_MAC_ADDR)) {
-        LOG_DRIVER("    VIRTIO_NET_F_CTRL_MAC_ADDR\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_HOST_USO)) {
-        LOG_DRIVER("    VIRTIO_NET_F_HOST_USO\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_HASH_REPORT)) {
-        LOG_DRIVER("    VIRTIO_NET_F_HASH_REPORT\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_HDRLEN)) {
-        LOG_DRIVER("    VIRTIO_NET_F_GUEST_HDRLEN\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_RSS)) {
-        LOG_DRIVER("    VIRTIO_NET_F_RSS\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_RSC_EXT)) {
-        LOG_DRIVER("    VIRTIO_NET_F_RSC_EXT\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_STANDBY)) {
-        LOG_DRIVER("    VIRTIO_NET_F_STANDBY\n");
-    }
-    if (features & ((uint64_t)1 << VIRTIO_NET_F_SPEED_DUPLEX)) {
-        LOG_DRIVER("    VIRTIO_NET_F_SPEED_DUPLEX\n");
-    }
-}
-
 static void eth_setup(void)
 {
     // Do MMIO device init (section 4.2.3.1)
@@ -287,7 +217,7 @@ static void eth_setup(void)
     // Set the ACKNOWLEDGE bit to say we have noticed the device
     regs->Status = VIRTIO_DEVICE_STATUS_ACKNOWLEDGE;
     // Set the DRIVER bit to say we know how to drive the device
-    regs->Status |= VIRTIO_DEVICE_STATUS_DRIVER;
+    regs->Status = VIRTIO_DEVICE_STATUS_DRIVER;
 
     LOG_DRIVER("device feature bits:\n");
     uint32_t feature_low = regs->DeviceFeatures;
@@ -300,11 +230,11 @@ static void eth_setup(void)
     print_feature_bits(feature);
     virtio_print_reserved_feature_bits(feature);
 
-    regs->DriverFeatures = 0;
+    regs->DriverFeatures = VIRTIO_NET_F_CSUM;
     regs->DriverFeaturesSel = 1;
     regs->DriverFeatures = 0;
 
-    regs->Status |= VIRTIO_DEVICE_STATUS_FEATURES_OK;
+    regs->Status = VIRTIO_DEVICE_STATUS_FEATURES_OK;
 
     if (!(regs->Status & VIRTIO_DEVICE_STATUS_FEATURES_OK)) {
         LOG_DRIVER_ERR("device status features is not OK!\n");
@@ -333,16 +263,17 @@ static void eth_setup(void)
 
     for (int i = 0; i < RX_COUNT; i++) {
         net_buff_desc_t desc;
-        LOG_DRIVER("here 1!\n");
+        // LOG_DRIVER("here 1!\n");
         int err = net_dequeue_free(&rx_queue, &desc);
-        LOG_DRIVER("here 2!\n");
+        // LOG_DRIVER("here 2!\n");
         assert(!err);
 
         // TODO: some check for whether desc.len is valid?
-        LOG_DRIVER("(%d): addr: 0x%lx, len: 0x%x\n", i, desc.io_or_offset, NET_BUFFER_SIZE);
+        // LOG_DRIVER("(%d): addr: 0x%lx, len: 0x%x\n", i, desc.io_or_offset, NET_BUFFER_SIZE);
         rx_virtq.desc[i].addr = desc.io_or_offset;
         rx_virtq.desc[i].len = NET_BUFFER_SIZE;
         rx_virtq.desc[i].flags = VIRTQ_DESC_F_WRITE;
+        rx_virtq.avail->ring[rx_virtq.avail->idx] = i;
         rx_virtq.avail->idx++;
     }
 
@@ -356,33 +287,35 @@ static void eth_setup(void)
     assert(regs->QueueNumMax >= RX_COUNT);
     regs->QueueSel = VIRTIO_NET_RX_QUEUE;
     regs->QueueNum = RX_COUNT;
-    regs->QueueReady = 1;
     regs->QueueDescLow = (hw_ring_buffer_paddr + rx_desc_off) & 0xFFFFFFFF;
     regs->QueueDescHigh = (hw_ring_buffer_paddr + rx_desc_off) >> 32;
     regs->QueueDriverLow = (hw_ring_buffer_paddr + rx_avail_off) & 0xFFFFFFFF;
     regs->QueueDriverHigh = (hw_ring_buffer_paddr + rx_avail_off) >> 32;
     regs->QueueDeviceLow = (hw_ring_buffer_paddr + rx_used_off) & 0xFFFFFFFF;
     regs->QueueDeviceHigh = (hw_ring_buffer_paddr + rx_used_off) >> 32;
+    regs->QueueReady = 1;
 
     // Setup TX queue
     assert(regs->QueueNumMax >= TX_COUNT);
     regs->QueueSel = VIRTIO_NET_TX_QUEUE;
     regs->QueueNum = TX_COUNT;
-    regs->QueueReady = 1;
     regs->QueueDescLow = (hw_ring_buffer_paddr + tx_desc_off) & 0xFFFFFFFF;
     regs->QueueDescHigh = (hw_ring_buffer_paddr + tx_desc_off) >> 32;
     regs->QueueDriverLow = (hw_ring_buffer_paddr + tx_avail_off) & 0xFFFFFFFF;
     regs->QueueDriverHigh = (hw_ring_buffer_paddr + tx_avail_off) >> 32;
     regs->QueueDeviceLow = (hw_ring_buffer_paddr + tx_used_off) & 0xFFFFFFFF;
     regs->QueueDeviceHigh = (hw_ring_buffer_paddr + tx_used_off) >> 32;
+    regs->QueueReady = 1;
 
     // Set the DRIVER_OK status bit
-    regs->Status |= VIRTIO_DEVICE_STATUS_DRIVER_OK;
+    regs->Status = VIRTIO_DEVICE_STATUS_DRIVER_OK;
+    regs->InterruptACK = VIRTIO_MMIO_IRQ_VQUEUE;
 }
 
 void init(void)
 {
     regs = (volatile virtio_mmio_regs_t *) (eth_regs + VIRTIO_MMIO_NET_OFFSET);
+    virtio_net_headers = (virtio_net_hdr_t *) virtio_net_headers_vaddr;
 
     net_queue_init(&rx_queue, (net_queue_t *)rx_free, (net_queue_t *)rx_active, RX_QUEUE_SIZE_DRIV);
     net_queue_init(&tx_queue, (net_queue_t *)tx_free, (net_queue_t *)tx_active, TX_QUEUE_SIZE_DRIV);

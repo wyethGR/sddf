@@ -1,4 +1,15 @@
 #include <stdint.h>
+#include <sddf/util/printf.h>
+
+#define DEBUG_DRIVER
+
+#ifdef DEBUG_DRIVER
+#define LOG_DRIVER(...) do{ sddf_dprintf("ETH DRIVER|INFO: "); sddf_dprintf(__VA_ARGS__); }while(0)
+#else
+#define LOG_DRIVER(...) do{}while(0)
+#endif
+
+#define LOG_DRIVER_ERR(...) do{ sddf_printf("ETH DRIVER|ERROR: "); sddf_printf(__VA_ARGS__); }while(0)
 
 #define VIRTIO_NET_RX_QUEUE 0
 #define VIRTIO_NET_TX_QUEUE 1
@@ -41,6 +52,8 @@
 #define VIRTIO_NET_S_LINK_UP 1
 #define VIRTIO_NET_S_ANNOUNCE 2
 
+#define VIRTIO_NET_HDR_GSO_NONE 0
+
 typedef struct virtio_net_config {
     uint8_t mac[6];
     uint16_t status;
@@ -64,3 +77,95 @@ typedef struct virtio_net_hdr {
     uint16_t csum_offset; /* Offset after that to place checksum */
     // uint16_t num_buffers;
 } virtio_net_hdr_t;
+
+
+static void print_feature_bits(uint64_t features) {
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_CSUM)) {
+        LOG_DRIVER("    VIRTIO_NET_F_CSUM\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_CSUM)) {
+        LOG_DRIVER("    VIRTIO_NET_F_GUEST_CSUM\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)) {
+        LOG_DRIVER("    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_MTU)) {
+        LOG_DRIVER("    VIRTIO_NET_F_MTU\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_MAC)) {
+        LOG_DRIVER("    VIRTIO_NET_F_MAC\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_TSO4)) {
+        LOG_DRIVER("    VIRTIO_NET_F_GUEST_TSO4\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_TSO6)) {
+        LOG_DRIVER("    VIRTIO_NET_F_GUEST_TSO6\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_ECN)) {
+        LOG_DRIVER("    VIRTIO_NET_F_GUEST_ECN\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_UFO)) {
+        LOG_DRIVER("    VIRTIO_NET_F_GUEST_UFO\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_HOST_TSO4)) {
+        LOG_DRIVER("    VIRTIO_NET_F_HOST_TSO4\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_HOST_TSO6)) {
+        LOG_DRIVER("    VIRTIO_NET_F_HOST_TSO6\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_HOST_ECN)) {
+        LOG_DRIVER("    VIRTIO_NET_F_HOST_ECN\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_HOST_UFO)) {
+        LOG_DRIVER("    VIRTIO_NET_F_HOST_UFO\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_MRG_RXBUF)) {
+        LOG_DRIVER("    VIRTIO_NET_F_MRG_RXBUF\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_STATUS)) {
+        LOG_DRIVER("    VIRTIO_NET_F_STATUS\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_VQ)) {
+        LOG_DRIVER("    VIRTIO_NET_F_CTRL_VQ\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_RX)) {
+        LOG_DRIVER("    VIRTIO_NET_F_CTRL_RX\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_VLAN)) {
+        LOG_DRIVER("    VIRTIO_NET_F_CTRL_VLAN\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_RX_EXTRA)) {
+        LOG_DRIVER("    VIRTIO_NET_F_CTRL_RX_EXTRA\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_ANNOUNCE)) {
+        LOG_DRIVER("    VIRTIO_NET_F_GUEST_ANNOUNCE\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_MQ)) {
+        LOG_DRIVER("    VIRTIO_NET_F_MQ\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_CTRL_MAC_ADDR)) {
+        LOG_DRIVER("    VIRTIO_NET_F_CTRL_MAC_ADDR\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_HOST_USO)) {
+        LOG_DRIVER("    VIRTIO_NET_F_HOST_USO\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_HASH_REPORT)) {
+        LOG_DRIVER("    VIRTIO_NET_F_HASH_REPORT\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_GUEST_HDRLEN)) {
+        LOG_DRIVER("    VIRTIO_NET_F_GUEST_HDRLEN\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_RSS)) {
+        LOG_DRIVER("    VIRTIO_NET_F_RSS\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_RSC_EXT)) {
+        LOG_DRIVER("    VIRTIO_NET_F_RSC_EXT\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_STANDBY)) {
+        LOG_DRIVER("    VIRTIO_NET_F_STANDBY\n");
+    }
+    if (features & ((uint64_t)1 << VIRTIO_NET_F_SPEED_DUPLEX)) {
+        LOG_DRIVER("    VIRTIO_NET_F_SPEED_DUPLEX\n");
+    }
+}
+

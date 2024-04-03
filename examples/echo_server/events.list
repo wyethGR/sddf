@@ -3,4 +3,13 @@ virtio_mmio_write_offset
 virtio_mmio_guest_page
 virtio_mmio_queue_write
 virtio_mmio_setting_irq
+virtqueue_alloc_element
+virtqueue_fill
+virtqueue_flush
+virtqueue_pop
+virtio_queue_notify
+virtio_notify_irqfd_deferred_fn
+virtio_notify_irqfd
+virtio_notify
+virtio_set_status
 
