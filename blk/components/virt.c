@@ -277,16 +277,18 @@ static void handle_client(int cli_id) {
     uint64_t drv_req_id;
     while (!blk_req_queue_empty(&h)) {
         blk_dequeue_req(&h, &cli_code, &cli_addr, &cli_block_number, &cli_count, &cli_req_id);
+        
+        drv_block_number = cli_block_number + (clients[cli_id].start_sector / (BLK_TRANSFER_SIZE / MBR_SECTOR_SIZE));
 
+        // Check if client request is within its allocated bounds
         if (cli_code == READ_BLOCKS || cli_code == WRITE_BLOCKS) {
-            // Check if client request is within its allocated bounds
-            if (cli_block_number + cli_count > clients[cli_id].sectors) {
+            unsigned long client_sectors = clients[cli_id].sectors / (BLK_TRANSFER_SIZE / MBR_SECTOR_SIZE);
+            unsigned long client_start_sector = clients[cli_id].start_sector / (BLK_TRANSFER_SIZE / MBR_SECTOR_SIZE);
+            if (drv_block_number < client_start_sector || drv_block_number + cli_count > client_start_sector + client_sectors) {
                 blk_enqueue_resp(&h, SEEK_ERROR, 0, cli_req_id);
                 continue;
             }
         }
-
-        drv_block_number = cli_block_number + (clients[cli_id].start_sector / (BLK_TRANSFER_SIZE / MBR_SECTOR_SIZE));
 
         switch(cli_code) {
             case READ_BLOCKS:
