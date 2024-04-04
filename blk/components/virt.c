@@ -134,6 +134,9 @@ static void request_mbr() {
     ds_data_t mbr_req_data = {0, 0, 0, mbr_addr, 1, 0};
     datastore_alloc(&ds, &mbr_req_data, &mbr_req_id);
     
+    // Should always check whether the queue is full before enqueuing
+    // but since this is the first request made as part of initialisation,
+    // it should never be full
     blk_enqueue_req(&drv_h, READ_BLOCKS, mbr_addr, 0, 1, mbr_req_id);
 
     microkit_notify(DRIVER_CH);
