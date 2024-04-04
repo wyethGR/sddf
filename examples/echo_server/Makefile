@@ -21,11 +21,11 @@ ifeq ($(strip $(MICROKIT_BOARD)), odroidc4)
 	CPU := cortex-a55
 else ifeq ($(strip $(MICROKIT_BOARD)), imx8mm_evk)
 	ETH_DRIV_DIR := imx
-	TIMER_DRIV_DIR := meson
+	TIMER_DRIV_DIR := imx
 	CPU := cortex-a53
 else ifeq ($(strip $(MICROKIT_BOARD)), maaxboard)
 	ETH_DRIV_DIR := imx
-	TIMER_DRIV_DIR := meson
+	TIMER_DRIV_DIR := imx
 	CPU := cortex-a53
 else ifeq ($(strip $(MICROKIT_BOARD)), qemu_arm_virt)
 	ETH_DRIV_DIR := virtio
