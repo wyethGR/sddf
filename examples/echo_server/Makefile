@@ -186,11 +186,11 @@ qemu: $(IMAGE_FILE)
 			-device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0 \
 			-m size=2G \
 			-nographic \
-			-device virtio-net-device,netdev=netdev0,mac=02:ca:fe:f0:0d:01 \
+			-device virtio-net-device,netdev=netdev0 \
 			-netdev user,id=netdev0 \
 			-global virtio-mmio.force-legacy=false \
 			-d guest_errors \
-			-trace events=events.list
+			-object filter-dump,id=netdev0,netdev=netdev0,file=qemu_netdev.log
 
 .PHONY: all compile clean
 

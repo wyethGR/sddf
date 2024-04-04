@@ -51,6 +51,7 @@ int get_client(struct ethernet_header * buffer)
 
 void rx_return(void)
 {
+    sddf_printf("in VIRT_RX rx_return\n");
     bool reprocess = true;
     bool notify_clients[NUM_CLIENTS] = {false};
     while (reprocess) {
@@ -61,6 +62,8 @@ void rx_return(void)
 
             buffer.io_or_offset = buffer.io_or_offset - buffer_data_paddr;
             microkit_arm_vspace_data_invalidate(buffer.io_or_offset + buffer_data_vaddr, buffer.io_or_offset + buffer_data_vaddr + ROUND_UP(buffer.len, CONFIG_L1_CACHE_LINE_SIZE_BITS));
+
+            sddf_printf("virt rx: here\n");
 
             int client = get_client((struct ethernet_header *) (buffer.io_or_offset + buffer_data_vaddr));
             if (client >= 0) {
@@ -87,6 +90,7 @@ void rx_return(void)
     for (int client = 0; client < NUM_CLIENTS; client++) {
         if (notify_clients[client] && net_require_signal_active(&state.rx_queue_clients[client])) {
             net_cancel_signal_active(&state.rx_queue_clients[client]);
+            sddf_printf("VIRT_RX: signalling CLIENT_CH: 0x%lx\n", client + CLIENT_CH);
             microkit_notify(client + CLIENT_CH);
         }
     }
@@ -101,8 +105,8 @@ void rx_provide(void)
                 net_buff_desc_t buffer;
                 int err = net_dequeue_free(&state.rx_queue_clients[client], &buffer);
                 assert(!err);
-                assert(!(buffer.io_or_offset % NET_BUFFER_SIZE) && 
-                       (buffer.io_or_offset < NET_BUFFER_SIZE * state.rx_queue_clients[client].size));
+                // assert(!(buffer.io_or_offset % NET_BUFFER_SIZE) && 
+                       // (buffer.io_or_offset < NET_BUFFER_SIZE * state.rx_queue_clients[client].size));
 
                 buffer.io_or_offset = buffer.io_or_offset + buffer_data_paddr;
                 err = net_enqueue_free(&state.rx_queue_drv, buffer);

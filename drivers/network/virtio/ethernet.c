@@ -44,6 +44,8 @@ uintptr_t tx_active;
 
 struct virtq rx_virtq;
 struct virtq tx_virtq;
+uint16_t rx_last_seen_used = 0;
+uint16_t tx_last_seen_used = 0;
 
 net_queue_handle_t rx_queue;
 net_queue_handle_t tx_queue;
@@ -72,24 +74,24 @@ static inline bool virtio_used_empty(struct virtq *virtq) {
 
 static void rx_provide(void)
 {
-    bool reprocess = true;
-    while (reprocess) {
-        while (!virtio_avail_full(&rx_virtq) && !net_queue_empty_free(&rx_queue)) {
-            net_buff_desc_t buffer;
-            int err = net_dequeue_free(&rx_queue, &buffer);
-            assert(!err);
+    // bool reprocess = true;
+    // while (reprocess) {
+    //     while (!virtio_avail_full(&rx_virtq) && !net_queue_empty_free(&rx_queue)) {
+    //         net_buff_desc_t buffer;
+    //         int err = net_dequeue_free(&rx_queue, &buffer);
+    //         assert(!err);
 
-            // TODO
-        }
+    //         // TODO
+    //     }
 
-        net_request_signal_free(&rx_queue);
-        reprocess = false;
+    //     net_request_signal_free(&rx_queue);
+    //     reprocess = false;
 
-        if (!net_queue_empty_free(&rx_queue) && !virtio_avail_full(&rx_virtq)) {
-            net_cancel_signal_free(&rx_queue);
-            reprocess = true;
-        }
-    }
+    //     if (!net_queue_empty_free(&rx_queue) && !virtio_avail_full(&rx_virtq)) {
+    //         net_cancel_signal_free(&rx_queue);
+    //         reprocess = true;
+    //     }
+    // }
 }
 
 static void rx_return(void)
@@ -97,34 +99,40 @@ static void rx_return(void)
     /* Extract RX buffers from the 'used' and pass them up to the client by putting them
      * in our sDDF 'active' queues. */
     bool packets_transferred = false;
-    while (!virtio_used_empty(&rx_virtq)) {
-        // TODO
-        size_t idx = rx_virtq.used->idx;
-        LOG_DRIVER("idx: 0x%x\n", idx);
-        struct virtq_used_elem used = rx_virtq.used->ring[idx];
-        LOG_DRIVER("used id: 0x%x, len: %x\n", used.id, used.len);
-        uint64_t addr = rx_virtq.desc[used.id].addr;
-        uint32_t len = rx_virtq.desc[used.id].len;
+    // TODO: always handle wrapping with indexes
+    size_t i = rx_last_seen_used;
+    while (i != rx_virtq.used->idx) {
+        LOG_DRIVER("i: 0x%lx\n", i);
+        struct virtq_used_elem used = rx_virtq.used->ring[i];
+        LOG_DRIVER("used id: 0x%x, len: 0x%x\n", used.id, used.len);
+        uint64_t addr = rx_virtq.desc[used.id].addr + sizeof(virtio_net_hdr_t);
+        uint32_t len = used.len - sizeof(virtio_net_hdr_t);
         // TODO: assert that len > 0?
-        LOG_DRIVER("addr: 0x%lx, len: 0x%x\n", addr, len);
+        LOG_DRIVER("descriptor addr: 0x%lx, len: 0x%x\n", addr, len);
         net_buff_desc_t buffer = { addr, len };
         int err = net_enqueue_active(&rx_queue, buffer);
         assert(!err);
-        rx_virtq.used->idx++;
 
-        while (rx_virtq.desc[used.id].flags & VIRTQ_DESC_F_NEXT) {
-            used = rx_virtq.used->ring[rx_virtq.desc[used.id].next];
-            uint64_t addr = rx_virtq.desc[used.id].addr;
-            uint32_t len = rx_virtq.desc[used.id].len;
-            LOG_DRIVER("addr: 0x%lx, len: 0x%x\n", addr, len);
-            net_buff_desc_t buffer = { addr, len };
-            int err = net_enqueue_active(&rx_queue, buffer);
-            assert(!err);
-            rx_virtq.used->idx++;
-        }
+        assert(!(rx_virtq.desc[used.id].flags & VIRTQ_DESC_F_NEXT));
+
+        // while (rx_virtq.desc[used.id].flags & VIRTQ_DESC_F_NEXT) {
+        //     LOG_DRIVER("has next!\n");
+        //     used = rx_virtq.used->ring[rx_virtq.desc[used.id].next];
+        //     uint64_t addr = rx_virtq.desc[used.id].addr;
+        //     uint32_t len = rx_virtq.desc[used.id].len;
+        //     LOG_DRIVER("addr: 0x%lx, len: 0x%x\n", addr, len);
+        //     net_buff_desc_t buffer = { addr, len };
+        //     int err = net_enqueue_active(&rx_queue, buffer);
+        //     assert(!err);
+        // }
+        packets_transferred = true;
+        i++;
     }
 
+    rx_last_seen_used = rx_virtq.used->idx;
+
     if (packets_transferred && net_require_signal_active(&rx_queue)) {
+        LOG_DRIVER("signalling RX\n");
         net_cancel_signal_active(&rx_queue);
         microkit_notify(RX_CH);
     }
@@ -158,7 +166,7 @@ static void tx_provide(void)
             tx_virtq.desc[desc_idx].next = tx_virtq.desc_free;
             tx_virtq.desc[desc_idx].flags = VIRTQ_DESC_F_NEXT;
 
-            LOG_DRIVER("header desc_idx: 0x%lx addr: 0x%lx, len: 0x%lx, next: 0x%lx\n", desc_idx,
+            LOG_DRIVER("header desc_idx: 0x%lx addr: 0x%lx, len: 0x%x, next: 0x%x\n", desc_idx,
                 tx_virtq.desc[desc_idx].addr, tx_virtq.desc[desc_idx].len, tx_virtq.desc[desc_idx].next);
 
             desc_idx = tx_virtq.desc_free;
@@ -168,8 +176,10 @@ static void tx_provide(void)
 
             tx_virtq.desc[desc_idx].addr = buffer.io_or_offset;
             tx_virtq.desc[desc_idx].len = buffer.len;
+            tx_virtq.desc[desc_idx].flags = 0;
 
-            LOG_DRIVER("enqueueing into virtIO avail TX ring, desc_idx: 0x%lx, addr: 0x%lx, len: 0x%lx\n", desc_idx, buffer.io_or_offset, buffer.len);
+            LOG_DRIVER("enqueueing into virtIO avail TX ring, desc_idx: 0x%lx, addr: 0x%lx, len: 0x%x\n",
+                        desc_idx, buffer.io_or_offset, buffer.len);
 
             /* @ivanv: use a memory fence. If a memory fence is used, it is more optimal
              * to update this number only once */
@@ -195,7 +205,7 @@ static void tx_return(void)
     /* We must look through the 'used' ring of the TX virtqueue and place them in our
      * sDDF *free* queue. I understand the terminology is confusing. */
     bool enqueued = false;
-    size_t virtq_idx = tx_virtq.used->idx;
+    // size_t virtq_idx = tx_virtq.used->idx;
     // while () {
         /* Ensure that this buffer has been sent by the device */
         // volatile struct descriptor *d = &(tx.descr[tx.head]);
@@ -250,9 +260,7 @@ static void eth_setup(void)
         return;
     }
 
-    LOG_DRIVER("init\n");
-
-    LOG_DRIVER("version: 0x%lx\n", virtio_mmio_version(regs));
+    LOG_DRIVER("version: 0x%x\n", virtio_mmio_version(regs));
 
     // Do normal device initialisation (section 3.2)
 
@@ -266,10 +274,10 @@ static void eth_setup(void)
 
     LOG_DRIVER("device feature bits:\n");
     uint32_t feature_low = regs->DeviceFeatures;
-    LOG_DRIVER("feature low: 0x%lx\n", feature_low);
+    LOG_DRIVER("feature low: 0x%x\n", feature_low);
     regs->DeviceFeaturesSel = 1;
     uint32_t feature_high = regs->DeviceFeatures;
-    LOG_DRIVER("feature high: 0x%lx\n", feature_high);
+    LOG_DRIVER("feature high: 0x%x\n", feature_high);
     uint64_t feature = feature_low | ((uint64_t)feature_high << 32);
     LOG_DRIVER("feature: 0x%lx\n", feature);
     virtio_net_print_features(feature);
@@ -303,12 +311,12 @@ static void eth_setup(void)
     assert(size <= HW_RING_SIZE);
 
     rx_virtq.num = RX_COUNT;
-    rx_virtq.desc = hw_ring_buffer_vaddr + rx_desc_off;
-    rx_virtq.avail = hw_ring_buffer_vaddr + rx_avail_off;
-    rx_virtq.used = hw_ring_buffer_vaddr + rx_used_off;
+    rx_virtq.desc = (struct virtq_desc *)(hw_ring_buffer_vaddr + rx_desc_off);
+    rx_virtq.avail = (struct virtq_avail *)(hw_ring_buffer_vaddr + rx_avail_off);
+    rx_virtq.used = (struct virtq_used *)(hw_ring_buffer_vaddr + rx_used_off);
     rx_virtq.desc_free = 0;
 
-    for (int i = 0; i < RX_COUNT; i++) {
+    for (int i = 0; i < RX_COUNT - 1; i++) {
         net_buff_desc_t desc;
         // LOG_DRIVER("here 1!\n");
         int err = net_dequeue_free(&rx_queue, &desc);
@@ -316,13 +324,15 @@ static void eth_setup(void)
         assert(!err);
 
         // TODO: some check for whether desc.len is valid?
-        // LOG_DRIVER("(%d): addr: 0x%lx, len: 0x%x\n", i, desc.io_or_offset, NET_BUFFER_SIZE);
+        LOG_DRIVER("(%d): addr: 0x%lx, len: 0x%x\n", i, desc.io_or_offset, NET_BUFFER_SIZE);
         rx_virtq.desc[i].addr = desc.io_or_offset;
         rx_virtq.desc[i].len = NET_BUFFER_SIZE;
         rx_virtq.desc[i].flags = VIRTQ_DESC_F_WRITE;
         rx_virtq.avail->ring[rx_virtq.avail->idx] = i;
         rx_virtq.avail->idx++;
     }
+
+    assert(virtio_avail_full(&rx_virtq));
 
     tx_virtq.num = TX_COUNT;
     tx_virtq.desc = (struct virtq_desc *)(hw_ring_buffer_vaddr + tx_desc_off);
