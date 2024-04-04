@@ -249,18 +249,6 @@ static void handle_driver() {
             blk_enqueue_resp(&h, SEEK_ERROR, drv_success_count, cli_data.cli_req_id);
         }
         
-        // @ericc: Print out first 512bytes of data for debugging
-        // if (cli_data.cli_req_id == 0) {
-        //     LOG_BLK_VIRT("drv_addr: 0x%lx\n", cli_data.drv_addr);
-        //     char* addr = (char*)cli_data.drv_addr;
-
-        //     for (int i = 0; i < 512; i++) {
-        //         sddf_dprintf("%02x ", addr[i]);
-        //     }
-
-        //     sddf_dprintf("\n");
-        // }
-        
         // Notify corresponding client
         microkit_notify(clients[cli_data.cli_id].ch);
     }
