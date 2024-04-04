@@ -70,6 +70,12 @@ void rx_return(void)
                 err = net_enqueue_active(&state.rx_queue_clients[client], buffer);
                 assert(!err);
                 notify_clients[client] = true;
+                sddf_printf("VIRT_RX: mac addr is: ");
+                struct ethernet_header *hdr = (struct ethernet_header *) (buffer.io_or_offset + buffer_data_vaddr);
+                for (int i = 0; i < ETH_HWADDR_LEN; i++) {
+                    sddf_printf("%x", hdr->dest.addr[i]);
+                }
+                sddf_printf("\n");
             } else {
                 buffer.io_or_offset = buffer.io_or_offset + buffer_data_paddr;
                 err = net_enqueue_free(&state.rx_queue_drv, buffer);

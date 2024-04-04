@@ -6,6 +6,7 @@
 /*
  * Main things to figre out are now:
  * how to allocate and free descriptors?
+ * need to figure out if timer driver is actually correct
  */
 
 #include <stdbool.h>
@@ -363,6 +364,16 @@ static void eth_setup(void)
     regs->QueueDeviceLow = (hw_ring_buffer_paddr + tx_used_off) & 0xFFFFFFFF;
     regs->QueueDeviceHigh = (hw_ring_buffer_paddr + tx_used_off) >> 32;
     regs->QueueReady = 1;
+
+    // Set the MAC address
+    config->mac[0] = 0x52;
+    config->mac[1] = 0x54;
+    config->mac[2] = 0x01;
+    config->mac[3] = 0x00;
+    config->mac[4] = 0x00;
+    config->mac[5] = 0x07;
+
+    virtio_net_print_config(config);
 
     // Set the DRIVER_OK status bit
     regs->Status = VIRTIO_DEVICE_STATUS_DRIVER_OK;
