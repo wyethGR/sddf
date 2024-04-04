@@ -43,37 +43,37 @@
 /* Virtqueue descriptors: 16 bytes.
  * These can chain together via "next". */
 struct virtq_desc {
-        /* Address (guest-physical). */
-        uint64_t addr;
-        /* Length. */
-        uint32_t len;
-        /* The flags as indicated above. */
-        uint16_t flags;
-        /* We chain unused descriptors via this, too */
-        uint16_t next;
+    /* Address (guest-physical). */
+    uint64_t addr;
+    /* Length. */
+    uint32_t len;
+    /* The flags as indicated above. */
+    uint16_t flags;
+    /* We chain unused descriptors via this, too */
+    uint16_t next;
 };
 
 struct virtq_avail {
-        uint16_t flags;
-        /* Where the driver should put the next descriptor entry in the ring, module the queue size. */
-        uint16_t idx;
-        uint16_t ring[];
-        /* Only if VIRTIO_F_EVENT_IDX: uint16_t used_event; */
+    uint16_t flags;
+    /* Where the driver should put the next descriptor entry in the ring, module the queue size. */
+    uint16_t idx;
+    uint16_t ring[];
+    /* Only if VIRTIO_F_EVENT_IDX: uint16_t used_event; */
 };
 
 /* uint32_t is used here for ids for padding reasons. */
 struct virtq_used_elem {
-        /* Index of start of used descriptor chain. */
-        uint32_t id;
-        /* Total length of the descriptor chain which was written to. */
-        uint32_t len;
+    /* Index of start of used descriptor chain. */
+    uint32_t id;
+    /* Total length of the descriptor chain which was written to. */
+    uint32_t len;
 };
 
 struct virtq_used {
-        uint16_t flags;
-        uint16_t idx;
-        struct virtq_used_elem ring[];
-        /* Only if VIRTIO_F_EVENT_IDX: uint16_t avail_event; */
+    uint16_t flags;
+    uint16_t idx;
+    struct virtq_used_elem ring[];
+    /* Only if VIRTIO_F_EVENT_IDX: uint16_t avail_event; */
 };
 
 struct virtq {

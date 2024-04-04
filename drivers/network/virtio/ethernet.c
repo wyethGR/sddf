@@ -67,15 +67,67 @@ static inline bool virtio_avail_full(struct virtq *virtq) {
 }
 
 static inline bool virtio_used_empty(struct virtq *virtq) {
-    return virtq->used->idx == 0;
+    return virtq->used->idx % virtq->num == 0;
 }
 
-static void rx_provide()
+static void rx_provide(void)
 {
+    bool reprocess = true;
+    while (reprocess) {
+        while (!virtio_avail_full(&rx_virtq) && !net_queue_empty_free(&rx_queue)) {
+            net_buff_desc_t buffer;
+            int err = net_dequeue_free(&rx_queue, &buffer);
+            assert(!err);
+
+            // TODO
+        }
+
+        net_request_signal_free(&rx_queue);
+        reprocess = false;
+
+        if (!net_queue_empty_free(&rx_queue) && !virtio_avail_full(&rx_virtq)) {
+            net_cancel_signal_free(&rx_queue);
+            reprocess = true;
+        }
+    }
 }
 
 static void rx_return(void)
 {
+    /* Extract RX buffers from the 'used' and pass them up to the client by putting them
+     * in our sDDF 'active' queues. */
+    bool packets_transferred = false;
+    while (!virtio_used_empty(&rx_virtq)) {
+        // TODO
+        size_t idx = rx_virtq.used->idx;
+        LOG_DRIVER("idx: 0x%x\n", idx);
+        struct virtq_used_elem used = rx_virtq.used->ring[idx];
+        LOG_DRIVER("used id: 0x%x, len: %x\n", used.id, used.len);
+        uint64_t addr = rx_virtq.desc[used.id].addr;
+        uint32_t len = rx_virtq.desc[used.id].len;
+        // TODO: assert that len > 0?
+        LOG_DRIVER("addr: 0x%lx, len: 0x%x\n", addr, len);
+        net_buff_desc_t buffer = { addr, len };
+        int err = net_enqueue_active(&rx_queue, buffer);
+        assert(!err);
+        rx_virtq.used->idx++;
+
+        while (rx_virtq.desc[used.id].flags & VIRTQ_DESC_F_NEXT) {
+            used = rx_virtq.used->ring[rx_virtq.desc[used.id].next];
+            uint64_t addr = rx_virtq.desc[used.id].addr;
+            uint32_t len = rx_virtq.desc[used.id].len;
+            LOG_DRIVER("addr: 0x%lx, len: 0x%x\n", addr, len);
+            net_buff_desc_t buffer = { addr, len };
+            int err = net_enqueue_active(&rx_queue, buffer);
+            assert(!err);
+            rx_virtq.used->idx++;
+        }
+    }
+
+    if (packets_transferred && net_require_signal_active(&rx_queue)) {
+        net_cancel_signal_active(&rx_queue);
+        microkit_notify(RX_CH);
+    }
 }
 
 static void tx_provide(void)
@@ -202,13 +254,6 @@ static void eth_setup(void)
 
     LOG_DRIVER("version: 0x%lx\n", virtio_mmio_version(regs));
 
-    volatile virtio_net_config_t *config = (virtio_net_config_t *)regs->Config;
-    for (int i = 0; i < 6; i++) {
-        LOG_DRIVER("mac[%d]: 0x%lx\n", i, config->mac[i]);
-    }
-    LOG_DRIVER("mtu: 0x%lx\n", config->mtu);
-    LOG_DRIVER("speed: 0x%lx\n", config->speed);
-
     // Do normal device initialisation (section 3.2)
 
     // First reset the device
@@ -227,10 +272,9 @@ static void eth_setup(void)
     LOG_DRIVER("feature high: 0x%lx\n", feature_high);
     uint64_t feature = feature_low | ((uint64_t)feature_high << 32);
     LOG_DRIVER("feature: 0x%lx\n", feature);
-    print_feature_bits(feature);
-    virtio_print_reserved_feature_bits(feature);
+    virtio_net_print_features(feature);
 
-    regs->DriverFeatures = VIRTIO_NET_F_CSUM;
+    regs->DriverFeatures = VIRTIO_NET_F_MAC;
     regs->DriverFeaturesSel = 1;
     regs->DriverFeatures = 0;
 
@@ -240,6 +284,9 @@ static void eth_setup(void)
         LOG_DRIVER_ERR("device status features is not OK!\n");
         return;
     }
+
+    volatile virtio_net_config_t *config = (virtio_net_config_t *)regs->Config;
+    virtio_net_print_config(config);
 
     // Setup the virtqueues
 

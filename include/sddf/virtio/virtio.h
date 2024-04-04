@@ -84,36 +84,36 @@ uint32_t virtio_mmio_version(virtio_mmio_regs_t *regs){
 
 void virtio_print_reserved_feature_bits(uint64_t feature) {
     if (feature & ((uint64_t)1 << VIRTIO_F_INDIRECT_DESC)) {
-        sddf_dprintf("VIRTIO_F_INDIRECT_DESC\n");
+        sddf_dprintf("    VIRTIO_F_INDIRECT_DESC\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_EVENT_IDX)) {
-        sddf_dprintf("VIRTIO_F_EVENT_IDX\n");
+        sddf_dprintf("    VIRTIO_F_EVENT_IDX\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_VERSION_1)) {
-        sddf_dprintf("VIRTIO_F_VERSION_1\n");
+        sddf_dprintf("    VIRTIO_F_VERSION_1\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_ACCESS_PLATFORM)) {
-        sddf_dprintf("VIRTIO_F_ACCESS_PLATFORM\n");
+        sddf_dprintf("    VIRTIO_F_ACCESS_PLATFORM\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_RING_PACKED)) {
-        sddf_dprintf("VIRTIO_F_RING_PACKED\n");
+        sddf_dprintf("    VIRTIO_F_RING_PACKED\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_IN_ORDER)) {
-        sddf_dprintf("VIRTIO_F_IN_ORDER\n");
+        sddf_dprintf("    VIRTIO_F_IN_ORDER\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_ORDER_PLATFORM)) {
-        sddf_dprintf("VIRTIO_F_ORDER_PLATFORM\n");
+        sddf_dprintf("    VIRTIO_F_ORDER_PLATFORM\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_SR_IOV)) {
-        sddf_dprintf("VIRTIO_F_SR_IOV\n");
+        sddf_dprintf("    VIRTIO_F_SR_IOV\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_NOTIFICATION_DATA)) {
-        sddf_dprintf("VIRTIO_F_NOTIFICATION_DATA\n");
+        sddf_dprintf("    VIRTIO_F_NOTIFICATION_DATA\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_NOTIF_CONFIG_DATA)) {
-        sddf_dprintf("VIRTIO_F_NOTIF_CONFIG_DATA\n");
+        sddf_dprintf("    VIRTIO_F_NOTIF_CONFIG_DATA\n");
     }
     if (feature & ((uint64_t)1 << VIRTIO_F_RING_RESET)) {
-        sddf_dprintf("VIRTIO_F_RING_RESET\n");
+        sddf_dprintf("    VIRTIO_F_RING_RESET\n");
     }
 }
