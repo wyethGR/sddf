@@ -21,7 +21,7 @@
 #define BLK_MAX_SERIAL_NUMBER 63
 
 typedef struct blk_storage_info {
-    char serial_number[BLK_MAX_SERIAL_NUMBER + 1]; 
+    char serial_number[BLK_MAX_SERIAL_NUMBER + 1];
     bool read_only;
     bool ready; /* true if component closer to driver is ready */
     uint16_t sector_size; /* size of a sector */
