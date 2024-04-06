@@ -41,7 +41,7 @@ IMAGE_FILE = $(BUILD_DIR)/loader.img
 REPORT_FILE = $(BUILD_DIR)/report.txt
 
 BLOCK_DRIVER_OBJS := driver.o printf.o putchar_debug.o
-CLIENT_OBJS := client.o
+CLIENT_OBJS := client.o printf.o putchar_debug.o
 
 BLOCK_DRIVER := $(SDDF)/drivers/blk/$(BLOCK_DRIVER_DIR)
 
@@ -65,7 +65,7 @@ $(BUILD_DIR)/driver.o: $(BLOCK_DRIVER)/block.c
 $(BUILD_DIR)/driver.elf: $(addprefix $(BUILD_DIR)/, $(BLOCK_DRIVER_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
-$(BUILD_DIR)/client.elf: $(BUILD_DIR)/client.o
+$(BUILD_DIR)/client.elf: $(addprefix $(BUILD_DIR)/, $(CLIENT_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(IMAGE_FILE) $(REPORT_FILE): $(addprefix $(BUILD_DIR)/, $(IMAGES)) $(SYSTEM_FILE)

@@ -5,23 +5,71 @@
 #include <sddf/blk/queue.h>
 #include "block.h"
 
+#define IRQ_CH 0
+#define VIRT_CH 1
+
 /* TODO: this depends on QEMU/the hypervisor */
 #ifndef VIRTIO_MMIO_BLK_OFFSET
 #define VIRTIO_MMIO_BLK_OFFSET (0xe00)
 #endif
 
-#define VIRTQ_NUM_REQUESTS 128
+#define QUEUE_SIZE 128
+#define VIRTQ_NUM_REQUESTS QUEUE_SIZE
 #define REQUESTS_REGION_SIZE 0x200000
 
 uintptr_t blk_regs;
 uintptr_t requests_vaddr;
 uintptr_t requests_paddr;
 
+uintptr_t blk_config;
+uintptr_t blk_request;
+uintptr_t blk_response;
+uintptr_t blk_data;
+
 static volatile virtio_mmio_regs_t *regs;
 
 static struct virtq virtq;
+static blk_queue_handle_t blk_queue;
 
-void blk_init(void) {
+void handle_irq() {
+    uint32_t irq_status = regs->InterruptStatus;
+    if (irq_status & VIRTIO_MMIO_IRQ_VQUEUE) {
+        // TODO:
+        // We have handled the used buffer notification
+        regs->InterruptACK = VIRTIO_MMIO_IRQ_VQUEUE;
+    }
+
+    if (irq_status & VIRTIO_MMIO_IRQ_CONFIG) {
+        LOG_DRIVER_ERR("unexpected change in configuration\n");
+    }
+}
+
+void handle_request() {
+    /* Consume all requests and put them in the 'avail' ring of the virtq. */
+    while (!blk_req_queue_empty(&blk_queue)) {
+        blk_request_code_t req_code;
+        uintptr_t addr;
+        uint32_t block_number;
+        uint16_t count;
+        uint32_t id;
+        int err = blk_dequeue_req(&blk_queue, &req_code, &addr, &block_number, &count, &id);
+        assert(!err);
+
+        switch (req_code) {
+            case READ_BLOCKS:
+                LOG_DRIVER("handling read request with addr 0x%lx, block_number: 0x%x, count: 0x%x, id: 0x%x\n", addr, block_number, count, id);
+                break;
+            case WRITE_BLOCKS:
+                break;
+            default:
+                LOG_DRIVER_ERR("unsupported request code: 0x%x\n", req_code);
+                // TODO: handle
+                break;
+        }
+    }
+}
+
+void virtio_blk_init(void) {
     // Do MMIO device init (section 4.2.3.1)
     if (!virtio_mmio_check_magic(regs)) {
         LOG_DRIVER_ERR("invalid virtIO magic value!\n");
@@ -102,8 +150,21 @@ void blk_init(void) {
 
 void init(void) {
     regs = (volatile virtio_mmio_regs_t *) (blk_regs + VIRTIO_MMIO_BLK_OFFSET);
-    blk_init();
+    virtio_blk_init();
+
+    blk_queue_init(&blk_queue, (blk_req_queue_t *)blk_request, (blk_resp_queue_t *)blk_response, QUEUE_SIZE);
 }
 
 void notified(microkit_channel ch) {
+    switch (ch) {
+        case IRQ_CH:
+            handle_irq();
+            microkit_irq_ack_delayed(ch);
+            break;
+        case VIRT_CH:
+            handle_request();
+            break;
+        default:
+            LOG_DRIVER_ERR("received notification from unknown channel: 0x%x\n", ch);
+    }
 }

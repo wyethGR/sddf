@@ -30,10 +30,10 @@
     <protection_domain name="client" priority="1">
         <program_image path="client.elf" />
 
-        <map mr="blk_config_driver" vaddr="0x40_000_000" perms="rw" cached="true" />
-        <map mr="req_blk_driver" vaddr="0x40_200_000" perms="rw" cached="true" />
-        <map mr="resp_blk_driver" vaddr="0x40_400_000" perms="rw" cached="true" />
-        <map mr="data_blk_driver" vaddr="0x40_800_000" perms="rw" cached="true" />
+        <map mr="blk_config_driver" vaddr="0x40_000_000" perms="rw" cached="true" setvar_vaddr="blk_config" />
+        <map mr="req_blk_driver" vaddr="0x40_200_000" perms="rw" cached="true" setvar_vaddr="blk_request" />
+        <map mr="resp_blk_driver" vaddr="0x40_400_000" perms="rw" cached="true" setvar_vaddr="blk_response" />
+        <map mr="data_blk_driver" vaddr="0x40_800_000" perms="rw" cached="true" setvar_vaddr="blk_data" />
     </protection_domain>
 
     <channel>
