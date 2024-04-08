@@ -250,7 +250,7 @@ static void handle_driver() {
         }
         
         // Notify corresponding client
-        microkit_notify_delayed(clients[cli_data.cli_id].ch);
+        microkit_notify(clients[cli_data.cli_id].ch);
     }
 }
 
