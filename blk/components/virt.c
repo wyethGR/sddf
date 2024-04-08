@@ -139,7 +139,7 @@ static void request_mbr() {
     // it should never be full
     blk_enqueue_req(&drv_h, READ_BLOCKS, mbr_addr, 0, 1, mbr_req_id);
 
-    microkit_notify(DRIVER_CH);
+    microkit_notify_delayed(DRIVER_CH);
 }
 
 static bool handle_mbr_reply() {
@@ -250,7 +250,7 @@ static void handle_driver() {
         }
         
         // Notify corresponding client
-        microkit_notify(clients[cli_data.cli_id].ch);
+        microkit_notify_delayed(clients[cli_data.cli_id].ch);
     }
 }
 
@@ -333,6 +333,6 @@ void notified(microkit_channel ch) {
         for (int i = 0; i < BLK_NUM_CLIENTS; i++) {
             handle_client(i);
         }
-        microkit_notify(DRIVER_CH);
+        microkit_notify_delayed(DRIVER_CH);
     }
 }
