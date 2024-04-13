@@ -27,6 +27,9 @@ uintptr_t rx_active;
 uintptr_t tx_free;
 uintptr_t tx_active;
 
+uintptr_t rx_buffer_data_paddr;
+uintptr_t tx_buffer_data_paddr;
+
 #define RX_COUNT 256
 #define TX_COUNT 256
 #define MAX_COUNT MAX(RX_COUNT, TX_COUNT)
@@ -101,7 +104,7 @@ static void rx_provide(void)
             uint16_t stat = RXD_EMPTY;
             if (rx.tail + 1 == RX_COUNT) stat |= WRAP;
             rx.descr_mdata[rx.tail] = buffer;
-            update_ring_slot(&rx, rx.tail, buffer.io_or_offset, 0, stat);
+            update_ring_slot(&rx, rx.tail, buffer.io_or_offset + rx_buffer_data_paddr, 0, stat);
             rx.tail = (rx.tail + 1) % RX_COUNT;
         }
 
@@ -160,7 +163,7 @@ static void tx_provide(void)
             uint16_t stat = TXD_READY | TXD_ADDCRC | TXD_LAST;
             if (tx.tail + 1 == TX_COUNT) stat |= WRAP;
             tx.descr_mdata[tx.tail] = buffer;
-            update_ring_slot(&tx, tx.tail, buffer.io_or_offset, buffer.len, stat);
+            update_ring_slot(&tx, tx.tail, buffer.io_or_offset + tx_buffer_data_paddr, buffer.len, stat);
 
             tx.tail = (tx.tail + 1) % TX_COUNT;
             if (!(eth->tdar & TDAR_TDAR)) eth->tdar = TDAR_TDAR;
@@ -303,7 +306,8 @@ void init(void)
     eth_setup();
 
     net_queue_init(&rx_queue, (net_queue_t *)rx_free, (net_queue_t *)rx_active, RX_QUEUE_SIZE_DRIV);
-    net_queue_init(&tx_queue, (net_queue_t *)tx_free, (net_queue_t *)tx_active, TX_QUEUE_SIZE_DRIV);
+    net_queue_init(&tx_queue, (net_queue_t *)tx_free, (net_queue_t *)tx_active, TX_QUEUE_SIZE_CLI0);
+    net_buffers_init(&rx_queue, 0);
 
     rx_provide();
     tx_provide();

@@ -45,7 +45,7 @@ NETWORK_COMPONENTS=$(SDDF)/network/components
 BOARD_DIR := $(MICROKIT_SDK)/board/$(MICROKIT_BOARD)/$(MICROKIT_CONFIG)
 SYSTEM_FILE := board/$(MICROKIT_BOARD)/echo_server.system
 
-IMAGES := eth.elf lwip.elf benchmark.elf idle.elf virt_rx.elf virt_tx.elf copy.elf arp.elf timer.elf
+IMAGES := eth.elf lwip.elf benchmark.elf idle.elf timer.elf
 CFLAGS := -mcpu=$(CPU) -mstrict-align -ffreestanding -g3 -O3 -Wall -Wno-unused-function -DMICROKIT_CONFIG_$(MICROKIT_CONFIG)
 
 LDFLAGS := -L$(BOARD_DIR)/lib -L$(SDDF)/lib
@@ -99,20 +99,14 @@ NETIFFILES=$(LWIP)/netif/ethernet.c
 
 # LWIPFILES: All the above.
 LWIPFILES=lwip.c $(COREFILES) $(CORE4FILES) $(NETIFFILES)
-LWIP_OBJS := $(LWIPFILES:.c=.o) lwip.o utilization_socket.o udp_echo_socket.o sddf_timer_client.o printf.o putchar_serial.o
+LWIP_OBJS := $(LWIPFILES:.c=.o) lwip.o utilization_socket.o udp_echo_socket.o sddf_timer_client.o printf.o putchar_serial.o $(UTIL)/cache.o
 
 ETH_OBJS := $(ETHERNET_DRIVER)/ethernet.o printf.o putchar_debug.o
-VIRT_RX_OBJS := $(NETWORK_COMPONENTS)/virt_rx.o $(UTIL)/cache.o printf.o putchar_debug.o
-VIRT_TX_OBJS := $(NETWORK_COMPONENTS)/virt_tx.o $(UTIL)/cache.o printf.o putchar_debug.o
-COPY_OBJS := $(NETWORK_COMPONENTS)/copy.o printf.o putchar_debug.o
 BENCH_OBJS := $(BENCHMARK)/benchmark.o printf.o putchar_serial.o
 IDLE_OBJS := $(BENCHMARK)/idle.o printf.o putchar_debug.o
-ARP_OBJS := $(NETWORK_COMPONENTS)/arp.o printf.o putchar_serial.o
 TIMER_OBJS := $(TIMER_DRIVER)/timer.o printf.o putchar_debug.o
 
-OBJS := $(sort $(addprefix $(BUILD_DIR)/, $(ETH_OBJS) $(VIRT_RX_OBJS) $(VIRT_TX_OBJS)\
-	$(COPY_OBJS) $(BENCH_OBJS) $(IDLE_OBJS) \
-	$(LWIP_OBJS) $(ARP_OBJS) $(TIMER_OBJS)))
+OBJS := $(sort $(addprefix $(BUILD_DIR)/, $(ETH_OBJS) $(BENCH_OBJS) $(IDLE_OBJS) $(LWIP_OBJS) $(TIMER_OBJS)))
 DEPS := $(OBJS:.o=.d)
 
 all: $(IMAGE_FILE)
@@ -143,22 +137,10 @@ $(BUILD_DIR)/eth.elf: $(addprefix $(BUILD_DIR)/, $(ETH_OBJS))
 $(BUILD_DIR)/lwip.elf: $(addprefix $(BUILD_DIR)/, $(LWIP_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
-$(BUILD_DIR)/virt_rx.elf: $(addprefix $(BUILD_DIR)/, $(VIRT_RX_OBJS))
-	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
-
-$(BUILD_DIR)/virt_tx.elf: $(addprefix $(BUILD_DIR)/, $(VIRT_TX_OBJS))
-	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
-
-$(BUILD_DIR)/copy.elf: $(addprefix $(BUILD_DIR)/, $(COPY_OBJS))
-	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
-
 $(BUILD_DIR)/benchmark.elf: $(addprefix $(BUILD_DIR)/, $(BENCH_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(BUILD_DIR)/idle.elf: $(addprefix $(BUILD_DIR)/, $(IDLE_OBJS))
-	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
-
-$(BUILD_DIR)/arp.elf: $(addprefix $(BUILD_DIR)/, $(ARP_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(BUILD_DIR)/timer.elf: $(addprefix $(BUILD_DIR)/, $(TIMER_OBJS))

@@ -11,6 +11,7 @@
 #include <sddf/network/arp.h>
 #include <sddf/network/queue.h>
 #include <sddf/timer/client.h>
+#include <sddf/util/cache.h>
 #include <sddf/benchmark/sel4bench.h>
 #include <ethernet_config.h>
 #include <string.h>
@@ -91,6 +92,7 @@ static void interface_free_buffer(struct pbuf *p)
     pbuf_custom_offset_t *custom_pbuf_offset = (pbuf_custom_offset_t *)p;
     SYS_ARCH_PROTECT(old_level);
     net_buff_desc_t buffer = {custom_pbuf_offset->offset, 0};
+    cache_clean_and_invalidate(buffer.io_or_offset + rx_buffer_data_region, buffer.io_or_offset + rx_buffer_data_region + ROUND_UP(buffer.len, 1 << CONFIG_L1_CACHE_LINE_SIZE_BITS));
     int err = net_enqueue_free(&(state.rx_queue), buffer);
     assert(!err);
     notify_rx = true;
@@ -171,6 +173,7 @@ static err_t lwip_eth_send(struct netif *netif, struct pbuf *p)
         copied += curr->len;
     }
 
+    cache_clean(buffer.io_or_offset + tx_buffer_data_region, buffer.io_or_offset + tx_buffer_data_region + copied);
     buffer.len = copied;
     err = net_enqueue_active(&state.tx_queue, buffer);
     assert(!err);
@@ -220,6 +223,7 @@ void receive(void)
             int err = net_dequeue_active(&state.rx_queue, &buffer);
             assert(!err);
 
+            cache_clean_and_invalidate(buffer.io_or_offset + rx_buffer_data_region, buffer.io_or_offset + rx_buffer_data_region + ROUND_UP(buffer.len, 1 << CONFIG_L1_CACHE_LINE_SIZE_BITS));
             struct pbuf *p = create_interface_buffer(buffer.io_or_offset, buffer.len);
             if (state.netif.input(p, &state.netif) != ERR_OK) {
                 sddf_dprintf("LWIP|ERROR: unkown error inputting pbuf into network stack\n");
@@ -262,16 +266,11 @@ static err_t ethernet_init(struct netif *netif)
     return ERR_OK;
 }
 
-/* Callback function that prints DHCP supplied IP address and registers it with ARP component. */
+/* Callback function that prints DHCP supplied IP address. */
 static void netif_status_callback(struct netif *netif)
 {
     if (dhcp_supplied_address(netif)) {
-        bool success = arp_register_ipv4(ARP, ip4_addr_get_u32(netif_ip4_addr(netif)), state.mac);
-        if (!success) {
-            sddf_printf("LWIP|ERR: could not register IP with ARP\n");
-        } else {
-            sddf_printf("LWIP|NOTICE: DHCP request for %s returned IP address: %s\n", microkit_name, ip4addr_ntoa(netif_ip4_addr(netif)));
-        }
+        sddf_printf("LWIP|NOTICE: DHCP request for %s returned IP address: %s\n", microkit_name, ip4addr_ntoa(netif_ip4_addr(netif)));
     }
 }
 

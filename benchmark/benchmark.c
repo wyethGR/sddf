@@ -23,13 +23,7 @@
 
 #define PD_TOTAL        0
 #define PD_ETH_ID       1
-#define PD_VIRT_RX_ID    2
-#define PD_VIRT_TX_ID    3
-#define PD_COPY_ID      4
-#define PD_COPY1_ID     5
 #define PD_LWIP_ID      6
-#define PD_LWIP1_ID     7
-#define PD_ARP_ID       8
 #define PD_TIMER_ID     9
 
 uintptr_t uart_base;
@@ -66,26 +60,8 @@ static void print_pdid_name(uint64_t pd_id)
     case PD_ETH_ID:
         sddf_printf(ETH_NAME);
         break;
-    case PD_VIRT_RX_ID:
-        sddf_printf(VIRT_RX_NAME);
-        break;
-    case PD_VIRT_TX_ID:
-        sddf_printf(VIRT_TX_NAME);
-        break;
-    case PD_COPY_ID:
-        sddf_printf(COPY0_NAME);
-        break;
-    case PD_COPY1_ID:
-        sddf_printf(COPY1_NAME);
-        break;
     case PD_LWIP_ID:
         sddf_printf(CLI0_NAME);
-        break;
-    case PD_LWIP1_ID:
-        sddf_printf(CLI1_NAME);
-        break;
-    case PD_ARP_ID:
-        sddf_printf(ARP_NAME);
         break;
     case PD_TIMER_ID:
         sddf_printf(TIMER_NAME);
@@ -101,13 +77,7 @@ static void microkit_benchmark_start(void)
 {
     seL4_BenchmarkResetThreadUtilisation(TCB_CAP);
     seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_ETH_ID);
-    seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_VIRT_RX_ID);
-    seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_VIRT_TX_ID);
-    seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_COPY_ID);
-    seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_COPY1_ID);
     seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_LWIP_ID);
-    seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_LWIP1_ID);
-    seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_ARP_ID);
     seL4_BenchmarkResetThreadUtilisation(BASE_TCB_CAP + PD_TIMER_ID);
     seL4_BenchmarkResetLog();
 }
@@ -198,6 +168,7 @@ void notified(microkit_channel ch)
 {
     switch (ch) {
     case START:
+#ifdef MICROKIT_CONFIG_benchmark
         sel4bench_reset_counters();
         THREAD_MEMORY_RELEASE();
         sel4bench_start_counters(benchmark_bf);
@@ -209,9 +180,10 @@ void notified(microkit_channel ch)
 #ifdef CONFIG_BENCHMARK_TRACK_KERNEL_ENTRIES
         seL4_BenchmarkResetLog();
 #endif
-
+#endif
         break;
     case STOP:
+#ifdef MICROKIT_CONFIG_benchmark
         sel4bench_get_counters(benchmark_bf, &counter_values[0]);
         sel4bench_stop_counters(benchmark_bf);
 
@@ -232,26 +204,8 @@ void notified(microkit_channel ch)
         microkit_benchmark_stop_tcb(PD_ETH_ID, &total, &number_schedules, &kernel, &entries);
         print_benchmark_details(PD_ETH_ID, kernel, entries, number_schedules, total);
 
-        microkit_benchmark_stop_tcb(PD_VIRT_RX_ID, &total, &number_schedules, &kernel, &entries);
-        print_benchmark_details(PD_VIRT_RX_ID, kernel, entries, number_schedules, total);
-
-        microkit_benchmark_stop_tcb(PD_VIRT_TX_ID, &total, &number_schedules, &kernel, &entries);
-        print_benchmark_details(PD_VIRT_TX_ID, kernel, entries, number_schedules, total);
-
-        microkit_benchmark_stop_tcb(PD_COPY_ID, &total, &number_schedules, &kernel, &entries);
-        print_benchmark_details(PD_COPY_ID, kernel, entries, number_schedules, total);
-
-        microkit_benchmark_stop_tcb(PD_COPY1_ID, &total, &number_schedules, &kernel, &entries);
-        print_benchmark_details(PD_COPY1_ID, kernel, entries, number_schedules, total);
-
         microkit_benchmark_stop_tcb(PD_LWIP_ID, &total, &number_schedules, &kernel, &entries);
         print_benchmark_details(PD_LWIP_ID, kernel, entries, number_schedules, total);
-
-        microkit_benchmark_stop_tcb(PD_LWIP1_ID, &total, &number_schedules, &kernel, &entries);
-        print_benchmark_details(PD_LWIP1_ID, kernel, entries, number_schedules, total);
-
-        microkit_benchmark_stop_tcb(PD_ARP_ID, &total, &number_schedules, &kernel, &entries);
-        print_benchmark_details(PD_ARP_ID, kernel, entries, number_schedules, total);
 
         microkit_benchmark_stop_tcb(PD_TIMER_ID, &total, &number_schedules, &kernel, &entries);
         print_benchmark_details(PD_TIMER_ID, kernel, entries, number_schedules, total);
@@ -262,7 +216,7 @@ void notified(microkit_channel ch)
         sddf_printf("KernelEntries:  %llx\n", entries);
         seL4_BenchmarkTrackDumpSummary(log_buffer, entries);
 #endif
-
+#endif
         break;
     default:
         sddf_printf("Bench thread notified on unexpected channel\n");
