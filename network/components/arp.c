@@ -18,6 +18,9 @@
 net_queue_handle_t rx_queue;
 net_queue_handle_t tx_queue;
 
+#define BENCH_FINISH_IN 20
+#define BENCH_FINISH_OUT 21
+
 uintptr_t rx_free;
 uintptr_t rx_active;
 uintptr_t tx_free;
@@ -130,8 +133,14 @@ static int arp_reply(const uint8_t ethsrc_addr[ETH_HWADDR_LEN],
     return 0;
 }
 
+uint64_t rx_tot = 0;
+uint64_t rx_num = 0;
+uint64_t rx_min = UINT64_MAX;
+uint64_t rx_max = 0;
+
 void receive(void)
 {
+    uint64_t rx_tot_local = 0;
     bool transmitted = false;
     bool reprocess = true;
     while (reprocess) {
@@ -139,6 +148,7 @@ void receive(void)
             net_buff_desc_t buffer;
             int err = net_dequeue_active(&rx_queue, &buffer);
             assert(!err);
+            rx_tot_local++;
             uintptr_t addr = rx_buffer_data_region + buffer.io_or_offset;
 
             /* Check if packet is an ARP request */
@@ -177,11 +187,24 @@ void receive(void)
         net_cancel_signal_active(&tx_queue);
         microkit_notify_delayed(TX_CH);
     }
+
+    rx_num++;
+    rx_tot += rx_tot_local;
+    if (rx_tot_local > rx_max) rx_max = rx_tot_local;
+    if (rx_tot_local < rx_min) rx_min = rx_tot_local;
 }
 
 void notified(microkit_channel ch)
 {
-    receive();
+    if (ch != BENCH_FINISH_IN) receive();
+    else {
+        sddf_printf("ARP Rx Batch Values| Avg: %lu, Min: %lu, Max: %lu\n", rx_tot/rx_num, rx_min, rx_max);
+        rx_tot = 0;
+        rx_num = 0;
+        rx_min = UINT64_MAX;
+        rx_max = 0;
+        microkit_notify(BENCH_FINISH_OUT);
+    }
 }
 
 seL4_MessageInfo_t protected(microkit_channel ch, microkit_msginfo msginfo)

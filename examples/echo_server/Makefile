@@ -101,10 +101,10 @@ NETIFFILES=$(LWIP)/netif/ethernet.c
 LWIPFILES=lwip.c $(COREFILES) $(CORE4FILES) $(NETIFFILES)
 LWIP_OBJS := $(LWIPFILES:.c=.o) lwip.o utilization_socket.o udp_echo_socket.o sddf_timer_client.o printf.o putchar_serial.o
 
-ETH_OBJS := $(ETHERNET_DRIVER)/ethernet.o printf.o putchar_debug.o
-VIRT_RX_OBJS := $(NETWORK_COMPONENTS)/virt_rx.o $(UTIL)/cache.o printf.o putchar_debug.o
-VIRT_TX_OBJS := $(NETWORK_COMPONENTS)/virt_tx.o $(UTIL)/cache.o printf.o putchar_debug.o
-COPY_OBJS := $(NETWORK_COMPONENTS)/copy.o printf.o putchar_debug.o
+ETH_OBJS := $(ETHERNET_DRIVER)/ethernet.o printf.o putchar_serial.o
+VIRT_RX_OBJS := $(NETWORK_COMPONENTS)/virt_rx.o $(UTIL)/cache.o printf.o putchar_serial.o
+VIRT_TX_OBJS := $(NETWORK_COMPONENTS)/virt_tx.o $(UTIL)/cache.o printf.o putchar_serial.o
+COPY_OBJS := $(NETWORK_COMPONENTS)/copy.o printf.o putchar_serial.o
 BENCH_OBJS := $(BENCHMARK)/benchmark.o printf.o putchar_serial.o
 IDLE_OBJS := $(BENCHMARK)/idle.o printf.o putchar_debug.o
 ARP_OBJS := $(NETWORK_COMPONENTS)/arp.o printf.o putchar_serial.o

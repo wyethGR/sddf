@@ -26,6 +26,9 @@ uintptr_t rx_free;
 uintptr_t rx_active;
 uintptr_t tx_free;
 uintptr_t tx_active;
+uintptr_t uart_base;
+
+#define BENCH_FINISH_IN 20
 
 #define RX_COUNT 256
 #define TX_COUNT 256
@@ -89,8 +92,14 @@ static inline void enable_irqs(uint32_t mask)
     irq_mask = mask;
 }
 
+uint64_t rpx_tot = 0;
+uint64_t rpx_num = 0;
+uint64_t rpx_min = UINT64_MAX;
+uint64_t rpx_max = 0;
+
 static void rx_provide(void)
 {
+    uint64_t rpx_tot_local = 0;
     bool reprocess = true;
     while (reprocess) {
         while (!hw_ring_full(&rx, RX_COUNT) && !net_queue_empty_free(&rx_queue)) {
@@ -103,6 +112,7 @@ static void rx_provide(void)
             rx.descr_mdata[rx.tail] = buffer;
             update_ring_slot(&rx, rx.tail, buffer.io_or_offset, 0, stat);
             rx.tail = (rx.tail + 1) % RX_COUNT;
+            rpx_tot_local++;
         }
 
         /* Only request a notification from virtualiser if HW ring not full */
@@ -123,10 +133,21 @@ static void rx_provide(void)
     } else {
         enable_irqs(NETIRQ_TXF | NETIRQ_EBERR);
     }
+
+    rpx_num++;
+    rpx_tot += rpx_tot_local;
+    if (rpx_tot_local > rpx_max) rpx_max = rpx_tot_local;
+    if (rpx_tot_local < rpx_min) rpx_min = rpx_tot_local;
 }
+
+uint64_t rrx_tot = 0;
+uint64_t rrx_num = 0;
+uint64_t rrx_min = UINT64_MAX;
+uint64_t rrx_max = 0;
 
 static void rx_return(void)
 {
+    uint64_t rrx_tot_local = 0;
     bool packets_transferred = false;
     while (!hw_ring_empty(&rx, RX_COUNT)) {
         /* If buffer slot is still empty, we have processed all packets the device has filled */
@@ -140,16 +161,28 @@ static void rx_return(void)
 
         packets_transferred = true;
         rx.head = (rx.head + 1) % RX_COUNT;
+        rrx_tot_local++;
     }
 
     if (packets_transferred && net_require_signal_active(&rx_queue)) {
         net_cancel_signal_active(&rx_queue);
         microkit_notify(RX_CH);
     }
+
+    rrx_num++;
+    rrx_tot += rrx_tot_local;
+    if (rrx_tot_local > rrx_max) rrx_max = rrx_tot_local;
+    if (rrx_tot_local < rrx_min) rrx_min = rrx_tot_local;
 }
+
+uint64_t tpx_tot = 0;
+uint64_t tpx_num = 0;
+uint64_t tpx_min = UINT64_MAX;
+uint64_t tpx_max = 0;
 
 static void tx_provide(void)
 {
+    uint64_t tpx_tot_local = 0;
     bool reprocess = true;
     while (reprocess) {
         while (!(hw_ring_full(&tx, TX_COUNT)) && !net_queue_empty_active(&tx_queue)) {
@@ -164,6 +197,7 @@ static void tx_provide(void)
 
             tx.tail = (tx.tail + 1) % TX_COUNT;
             if (!(eth->tdar & TDAR_TDAR)) eth->tdar = TDAR_TDAR;
+            tpx_tot_local++;
         }
     
         net_request_signal_active(&tx_queue);
@@ -174,10 +208,21 @@ static void tx_provide(void)
             reprocess = true;
         }
     }
+
+    tpx_num++;
+    tpx_tot += tpx_tot_local;
+    if (tpx_tot_local > tpx_max) tpx_max = tpx_tot_local;
+    if (tpx_tot_local < tpx_min) tpx_min = tpx_tot_local; 
 }
+
+uint64_t trx_tot = 0;
+uint64_t trx_num = 0;
+uint64_t trx_min = UINT64_MAX;
+uint64_t trx_max = 0;
 
 static void tx_return(void)
 {
+    uint64_t trx_tot_local = 0;
     bool enqueued = false;
     while (!hw_ring_empty(&tx, TX_COUNT)) {
         /* Ensure that this buffer has been sent by the device */
@@ -192,12 +237,18 @@ static void tx_return(void)
         int err = net_enqueue_free(&tx_queue, buffer);
         assert(!err);
         enqueued = true;
+        trx_tot_local++;
     }
 
     if (enqueued && net_require_signal_free(&tx_queue)) {
         net_cancel_signal_free(&tx_queue);
         microkit_notify(TX_CH);
     }
+
+    trx_num++;
+    trx_tot += trx_tot_local;
+    if (trx_tot_local > trx_max) trx_max = trx_tot_local;
+    if (trx_tot_local < trx_min) trx_min = trx_tot_local; 
 }
 
 static void handle_irq(void)
@@ -325,6 +376,28 @@ void notified(microkit_channel ch)
             break;
         case TX_CH:
             tx_provide();
+            break;
+        case BENCH_FINISH_IN:
+            sddf_printf("ETH Rx Return Batch Values| Avg: %lu, Min: %lu, Max: %lu\n", rrx_tot/rrx_num, rrx_min, rrx_max);
+            sddf_printf("ETH Rx Provide Batch Values| Avg: %lu, Min: %lu, Max: %lu\n", rpx_tot/rpx_num, rpx_min, rpx_max);
+            sddf_printf("ETH Tx Return Batch Values| Avg: %lu, Min: %lu, Max: %lu\n", trx_tot/trx_num, trx_min, trx_max);
+            sddf_printf("ETH Tx Provide Batch Values| Avg: %lu, Min: %lu, Max: %lu\n", tpx_tot/tpx_num, tpx_min, tpx_max);
+            rrx_tot = 0;
+            rrx_num = 0;
+            rrx_min = UINT64_MAX;
+            rrx_max = 0;
+            rpx_tot = 0;
+            rpx_num = 0;
+            rpx_min = UINT64_MAX;
+            rpx_max = 0;
+            trx_tot = 0;
+            trx_num = 0;
+            trx_min = UINT64_MAX;
+            trx_max = 0;
+            tpx_tot = 0;
+            tpx_num = 0;
+            tpx_min = UINT64_MAX;
+            tpx_max = 0;
             break;
         default:
             sddf_dprintf("ETH|LOG: received notification on unexpected channel: %u\n", ch);
