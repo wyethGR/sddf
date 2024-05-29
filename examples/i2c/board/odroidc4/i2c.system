@@ -11,11 +11,12 @@
 
     <memory_region name="i2c_bus" size="0x1000" phys_addr="0xFFD1D000"/>
 
-    <memory_region name="client_request_region" size="0x200_000" page_size="0x200_000"/>
-    <memory_region name="client_response_region" size="0x200_000" page_size="0x200_000"/>
-    <memory_region name="driver_request_region" size="0x200_000" page_size="0x200_000"/>
-    <memory_region name="driver_response_region" size="0x200_000" page_size="0x200_000"/>
-    <memory_region name="data_region" size="0x200_000" page_size="0x200_000"/>
+    <!-- These request/response regions are bounded by (64 +(160 * NUM_ENTRIES)) -->
+    <memory_region name="client_request_region" size="0x1_000"/>
+    <memory_region name="client_response_region" size="0x1_000"/>
+    <memory_region name="driver_request_region" size="0x1_000"/>
+    <memory_region name="driver_response_region" size="0x1_000"/>
+    <memory_region name="data_region" size="0x4_000"/>
 
     <memory_region name="timer_registers" size="0x1000" phys_addr="0xffd0f000" />
 

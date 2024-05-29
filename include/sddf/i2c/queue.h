@@ -9,8 +9,13 @@
 #include <stddef.h>
 #include <sddf/util/fence.h>
 
+#ifndef I2C_MAX_DATA_SIZE
 #define I2C_MAX_DATA_SIZE 512
-#define NUM_QUEUE_ENTRIES 512
+#endif
+
+#ifndef NUM_QUEUE_ENTRIES
+#define NUM_QUEUE_ENTRIES 200
+#endif
 
 #define RESPONSE_ERR 0
 #define RESPONSE_ERR_TOKEN 1
