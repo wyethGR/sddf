@@ -34,7 +34,7 @@ MICROKIT_TOOL ?= $(MICROKIT_SDK)/bin/microkit
 BOARD_DIR := $(MICROKIT_SDK)/board/$(MICROKIT_BOARD)/$(MICROKIT_CONFIG)
 UTIL := $(SDDF)/util
 
-IMAGES := timer_driver.elf client.elf
+IMAGES := usdhc_driver.elf client.elf
 CFLAGS := -mcpu=$(CPU) \
 		  -mstrict-align \
 		  -nostdlib \
@@ -51,11 +51,11 @@ IMAGE_FILE := loader.img
 REPORT_FILE := report.txt
 SYSTEM_FILE := ${TOP}/board/$(MICROKIT_BOARD)/usdhc.system
 CLIENT_OBJS := client.o
-TIMER_DRIVER := $(SDDF)/drivers/clock/${DRIVER_DIR}
+USDHC_DRIVER := $(SDDF)/drivers/usdhc/${DRIVER_DIR}
 
 all: $(IMAGE_FILE)
 
-include ${TIMER_DRIVER}/timer_driver.mk
+include ${USDHC_DRIVER}/usdhc_driver.mk
 include ${SDDF}/util/util.mk
 
 ${IMAGES}: libsddf_util_debug.a
