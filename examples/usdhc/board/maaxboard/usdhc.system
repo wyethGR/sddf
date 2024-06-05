@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system>
+    <memory_region name="timer_registers" size="0x10_000" phys_addr="0x302d0000" />
+
+    <protection_domain name="timer" priority="254" pp="true" passive="true">
+        <program_image path="timer_driver.elf" />
+        <map mr="timer_registers" vaddr="0x2_000_000" perms="rw" cached="false" setvar_vaddr="gpt_regs" />
+        <irq irq="87" id="0" />
+    </protection_domain>
+
+    <protection_domain name="client" priority="1" >
+        <program_image path="client.elf" />
+    </protection_domain>
+
+    <channel>
+        <end pd="timer" id="1" />
+        <end pd="client" id="1" /> <!-- Should this number change, so should TIMER_CH in timer.h -->
+    </channel>
+
+</system>

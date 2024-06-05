@@ -2,16 +2,32 @@ ifeq ($(strip $(MICROKIT_SDK)),)
 $(error MICROKIT_SDK must be specified)
 endif
 
+ifeq ($(strip $(SDDF)),)
+$(error SDDF must be specified)
+endif
+
+ifeq ($(strip $(TOOLCHAIN)),)
+	TOOLCHAIN := aarch64-none-elf
+endif
+
+BUILD_DIR ?= build
+MICROKIT_CONFIG ?= debug
+
+CC := $(TOOLCHAIN)-gcc
+LD := $(TOOLCHAIN)-ld
+AS := $(TOOLCHAIN)-as
+AR := $(TOOLCHAIN)-ar
+RANLIB := ${TOOLCHAIN}-ranlib
+
+# TODO: maybe don't hardcode?
+DRIVER_DIR := imx
+CPU := cortex-a53
+
+TOP := ${SDDF}/examples/usdhc
+
 BUILD_DIR ?= build
 # By default we make a debug build so that the client debug prints can be seen.
 MICROKIT_CONFIG ?= debug
-
-QEMU := qemu-system-aarch64
-
-CC := clang
-LD := ld.lld
-AR := llvm-ar
-RANLIB := llvm-ranlib
 
 MICROKIT_TOOL ?= $(MICROKIT_SDK)/bin/microkit
 
@@ -27,14 +43,13 @@ CFLAGS := -mcpu=$(CPU) \
 		  -O3 \
 		  -Wall -Wno-unused-function -Werror -Wno-unused-command-line-argument \
 		  -I$(BOARD_DIR)/include \
-		  -I$(SDDF)/include \
-		  -target aarch64-none-elf
+		  -I$(SDDF)/include
 LDFLAGS := -L$(BOARD_DIR)/lib
 LIBS := --start-group -lmicrokit -Tmicrokit.ld libsddf_util_debug.a --end-group
 
 IMAGE_FILE := loader.img
 REPORT_FILE := report.txt
-SYSTEM_FILE := ${TOP}/board/$(MICROKIT_BOARD)/timer.system
+SYSTEM_FILE := ${TOP}/board/$(MICROKIT_BOARD)/usdhc.system
 CLIENT_OBJS := client.o
 TIMER_DRIVER := $(SDDF)/drivers/clock/${DRIVER_DIR}
 
@@ -52,14 +67,6 @@ client.elf: client.o
 
 $(IMAGE_FILE) $(REPORT_FILE): $(IMAGES) $(SYSTEM_FILE)
 	$(MICROKIT_TOOL) $(SYSTEM_FILE) --search-path $(BUILD_DIR) --board $(MICROKIT_BOARD) --config $(MICROKIT_CONFIG) -o $(IMAGE_FILE) -r $(REPORT_FILE)
-
-qemu: $(IMAGE_FILE)
-	$(QEMU) -machine virt,virtualization=on \
-			-cpu cortex-a53 \
-			-serial mon:stdio \
-			-device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0 \
-			-m size=2G \
-			-nographic
 
 clean::
 	rm -f client.o
