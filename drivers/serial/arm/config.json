@@ -1,7 +1,7 @@
 [
     {
         "name": "serial_driver_uart_arm",
-        "compatible": [
+        "compatibles": [
             "arm,pl011"
         ],
         "maps": [
