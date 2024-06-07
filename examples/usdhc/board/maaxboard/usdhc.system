@@ -1,24 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <system>
-    <!-- See i.MX 8M Mini Applications Processor Reference Manual Rev 3, 11/2020 -->
+    <!-- See i.MX 8M Quad Applications Processor Reference Manual Rev 3.1, 06/2021 -->
     <!-- 12.1.5 GPT Memory Map/Register Definition -->
     <!-- <memory_region name="timer" size="0x10_000" phys_addr="0x302d_0000" /> -->
     <!-- 10.3.7.1.1 uSDHC memory map -->
     <memory_region name="usdhc1" size="0x10_000" phys_addr="0x30b4_0000" />
-    <memory_region name="usdhc2" size="0x10_000" phys_addr="0x30b5_0000" />
-    <memory_region name="usdhc3" size="0x10_000" phys_addr="0x30b6_0000" />
+    <!-- <memory_region name="usdhc2" size="0x10_000" phys_addr="0x30b5_0000" /> -->
 
     <protection_domain name="usdhc_driver" priority="254" >
         <program_image path="usdhc_driver.elf" />
-        <map mr="usdhc1" vaddr="0x5_000_000" perms="rw" cached="false" setvar_vaddr="usdhc1_regs" />
-        <map mr="usdhc2" vaddr="0x5_010_000" perms="rw" cached="false" setvar_vaddr="usdhc2_regs" />
-        <map mr="usdhc3" vaddr="0x5_020_000" perms="rw" cached="false" setvar_vaddr="usdhc3_regs" />
+        <map mr="usdhc1" vaddr="0x5_000_000" perms="rw" cached="false" setvar_vaddr="usdhc_regs" />
+        <!-- <map mr="usdhc2" vaddr="0x5_010_000" perms="rw" cached="false" setvar_vaddr="usdhc_regs" /> -->
 
         <!-- Table 7-2; uSDHC1 Enhanced SDHC Interrupt Request -->
-        <!-- TODO: VERIFY?? -->
-        <irq irq="22" id="1" /> <!-- uSDHC1-->
-        <irq irq="23" id="2" /> <!-- uSDHC2 -->
-        <irq irq="24" id="3" /> <!-- uSDHC3 -->
+        <irq irq="54" id="1"  /> <!-- uSDHC1 (IRQ22 + 32) -->
     </protection_domain>
 
     <protection_domain name="client" priority="1" >
