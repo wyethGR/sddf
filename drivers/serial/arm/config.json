@@ -1,66 +1,64 @@
-[
-    {
-        "name": "serial_driver_uart_arm",
-        "compatibles": [
-            "arm,pl011"
-        ],
-        "maps": [
-            {
-                "name": "serial_driver_uart_arm",
-                "perms": "rw",
-                "cached": false,
-                "setvar_vaddr": "uart_base",
-                "page_size": 4096,
-                "size": 4096
-            },
-            {
-                "name": "serial_driver_tx_data",
-                "perms": "rw",
-                "cached": true,
-                "setvar_vaddr": "tx_data",
-                "page_size": 2097152,
-                "size": 2097152
-            },
-            {
-                "name": "serial_driver_rx_data",
-                "perms": "rw",
-                "cached": true,
-                "setvar_vaddr": "rx_data",
-                "page_size": 2097152,
-                "size": 2097152
-            },
-            {
-                "name": "serial_driver_rx_queue",
-                "perms": "rw",
-                "cached": false,
-                "setvar_vaddr": "rx_queue",
-                "page_size": 4096,
-                "size": 4096
-            },
-            {
-                "name": "serial_driver_tx_queue",
-                "perms": "rw",
-                "cached": false,
-                "setvar_vaddr": "tx_queue",
-                "page_size": 4096,
-                "size": 4096
-            }
-        ],
-        "irqs": [
-            {
-                "name": "IRQ_CH",
-                "id": 0
-            }
-        ],
-        "channels": [
-            {
-                "name": "TX_CH",
-                "id": 1
-            },
-            {
-                "name": "RX_CH",
-                "id": 2
-            }
-        ]
-    }
-]
+{
+    "name": "serial_driver_uart_arm",
+    "compatibles": [
+        "arm,pl011"
+    ],
+    "maps": [
+        {
+            "name": "serial_driver_uart_arm",
+            "perms": "rw",
+            "cached": false,
+            "setvar_vaddr": "uart_base",
+            "page_size": 4096,
+            "size": 4096
+        },
+        {
+            "name": "serial_driver_tx_data",
+            "perms": "rw",
+            "cached": true,
+            "setvar_vaddr": "tx_data",
+            "page_size": 2097152,
+            "size": 2097152
+        },
+        {
+            "name": "serial_driver_rx_data",
+            "perms": "rw",
+            "cached": true,
+            "setvar_vaddr": "rx_data",
+            "page_size": 2097152,
+            "size": 2097152
+        },
+        {
+            "name": "serial_driver_rx_queue",
+            "perms": "rw",
+            "cached": false,
+            "setvar_vaddr": "rx_queue",
+            "page_size": 4096,
+            "size": 4096
+        },
+        {
+            "name": "serial_driver_tx_queue",
+            "perms": "rw",
+            "cached": false,
+            "setvar_vaddr": "tx_queue",
+            "page_size": 4096,
+            "size": 4096
+        }
+    ],
+    "irqs": [
+        {
+            "name": "IRQ_CH",
+            "id": 0
+        }
+    ],
+    "channels": [
+        {
+            "name": "TX_CH",
+            "id": 1
+        },
+        {
+            "name": "RX_CH",
+            "id": 2
+        }
+    ]
+}
