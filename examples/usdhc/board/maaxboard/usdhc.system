@@ -7,10 +7,14 @@
     <memory_region name="usdhc1" size="0x10_000" phys_addr="0x30b4_0000" />
     <!-- <memory_region name="usdhc2" size="0x10_000" phys_addr="0x30b5_0000" /> -->
 
+    <!-- https://elixir.bootlin.com/linux/v6.9.3/source/arch/arm64/boot/dts/freescale/imx8mq.dtsi#L766 -->
+    <!-- Also, Section 8.2  -->
+    <memory_region name="iomuxc" size="0x10_000" phys_addr="0x3033_0000" />
+
     <protection_domain name="usdhc_driver" priority="254" >
         <program_image path="usdhc_driver.elf" />
         <map mr="usdhc1" vaddr="0x5_000_000" perms="rw" cached="false" setvar_vaddr="usdhc_regs" />
-        <!-- <map mr="usdhc2" vaddr="0x5_010_000" perms="rw" cached="false" setvar_vaddr="usdhc_regs" /> -->
+        <map mr="iomuxc" vaddr="0x5_010_000" perms="rw" cached="false" setvar_vaddr="iomuxc_regs" />
 
         <!-- Table 7-2; uSDHC1 Enhanced SDHC Interrupt Request -->
         <irq irq="54" id="1"  /> <!-- uSDHC1 (IRQ22 + 32) -->
