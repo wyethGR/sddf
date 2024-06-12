@@ -1,6 +1,6 @@
 {
     "name": "serial_driver_uart_meson",
-    "compatible": [
+    "compatibles": [
         "amlogic,meson-gx-uart",
         "amlogic,meson-ao-uart"
     ],
