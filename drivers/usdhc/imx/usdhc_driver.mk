@@ -8,7 +8,7 @@
 # Requires usdhc_regs to be set to the mapped base of the uSDHC registers
 # in the system description file.
 
-USDHC_DRIVER_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+USDHC_DRIVER_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 usdhc_driver.elf: usdhc/imx/usdhc_driver.o
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@

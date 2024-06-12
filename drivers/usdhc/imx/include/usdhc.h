@@ -47,12 +47,26 @@ struct imx_usdhc_regs {
 };
 typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 
+/* PRES_STATE Bits. See 10.3.7.1.11 */
+// TODO: Rest.
+#define USDHC_PRES_STATE_CIHB  BIT(0)  /* Command inhibit (CMD) */
+#define USDHC_PRES_STATE_CDIHB BIT(1)  /* Command inhibit (DATA) */
+#define USDHC_PRES_STATE_SDSTB BIT(3)  /* SD clock stable */
+#define USDHC_PRES_STATE_CINST BIT(16) /* Card inserted. */
+
 /* SYS_CTRL Bits. See 10.3.7.1.13 */
 #define USDHC_SYS_CTRL_RSTA  BIT(24)  /* Software reset for all */
 #define USDHC_SYS_CTRL_RSTC  BIT(25)  /* Software reset for CMD line */
 #define USDHC_SYS_CTRL_RSTD  BIT(26)  /* Software reset for data line */
 #define USDHC_SYS_CTRL_INITA BIT(27)  /* Initialization active */
 #define USDHC_SYS_CTRL_RSTT  BIT(28)  /* Reset tuning */
+
+/* INT_STATUS Bits. See 10.3.7.1.14 */
+#define USDHC_INT_STATUS_CC   BIT(0)  /* Command complete. */
+#define USDHC_INT_STATUS_CTOE BIT(16) /* Command timeout error. */
+#define USDHC_INT_STATUS_CCE  BIT(17) /* Command CRC error. */
+#define USDHC_INT_STATUS_CEBE BIT(18) /* Command end bit error */
+#define USDHC_INT_STATUS_CIE  BIT(19) /* Command index error. */
 
 /* INT_STATUS_EN Bits. See 10.3.7.1.15 */
 #define USDHC_INT_STATUS_CCSEN    BIT(0)   /* Command complete status enable */
@@ -101,3 +115,10 @@ typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 #define USDHC_INT_SIGNAL_AC12EIEN BIT(24)  /* Auto CMD12 error interrupt enable */
 #define USDHC_INT_SIGNAL_TNEIEN   BIT(26)  /* Tuning error interrupt enable */
 #define USDHC_INT_SIGNAL_DMAEIEN  BIT(28)  /* DMA error interrupt enable */
+
+/* VEND_SPEC BIts. See 10.3.7.1.29 */
+#define USDHC_VEND_SPEC_FRC_SDCLK_ON BIT(8) /* Force CLK output active. */
+
+
+/* GENERIC? */
+#define USDHC_CMD_GO_IDLE_STATE 0 // TODO: I have no idea
