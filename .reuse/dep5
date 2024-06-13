@@ -8,7 +8,7 @@ License: ISC
 
 Files: network/ipstacks/lwip/*
 Copyright: Copyright (c) 2001-2004 Swedish Institute of Computer Science
-License: BSD-3-Clause
+License: BSD
 lwIP is licenced under the BSD license:
 
 Copyright (c) 2001-2004 Swedish Institute of Computer Science. 
