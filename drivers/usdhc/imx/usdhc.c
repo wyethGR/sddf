@@ -43,13 +43,82 @@ void usdhc_unmask_interrupts() {
     usdhc_regs->int_signal_en = 0xfffffff;
 }
 
+typedef enum {
+    RNone,
+    R1,
+    R1b,
+    R2,
+    R3,
+    R4,
+    R5,
+    R5b, // TODO: imx8 made this up lol, see note after table 10-42.
+    R6,
+    R7,
+} response_type_t;
+
+uint32_t get_command_xfr_typ(uint8_t cmd_index) {
+    // Set bits 29-24 (CMDINDX).
+    uint32_t cmd_xfr_typ = (cmd_index & 0b111111) << 24;
+    response_type_t rtype;
+
+    if (cmd_index == USDHC_CMD_GO_IDLE_STATE) {
+        cmd_xfr_typ &= ~BIT(21); /* DPSEL OFF */
+        rtype = RNone;
+    } else if (cmd_index == USDHC_CMD_IO_SEND_OP_COND) {
+        cmd_xfr_typ |= BIT(21); /* DPSEL ON */
+        rtype = R4;
+    } else if (cmd_index == USDHC_CMD_SEND_EXT_CSD) {
+        rtype = R1;
+    } else {
+        microkit_dbg_puts("unknown command :(");
+        return 0; // BAD! lol
+    }
+
+    // if (data) {
+    //     cmd_xfr_typ |= DPSEL;
+    // }
+
+    /* Ref: Table 10-42. */
+    if (rtype == RNone) {
+        // Index & CRC Checks: Disabled. RSPTYP: 00b.
+        cmd_xfr_typ &= ~BIT(20);
+        cmd_xfr_typ &= ~BIT(19);
+        cmd_xfr_typ |= (0b00 << 16);
+    } else if (rtype == R2) {
+        // Index Check: Disabled, CRC Check: Enabled
+        cmd_xfr_typ &= ~BIT(20);
+        cmd_xfr_typ |= BIT(19);
+        cmd_xfr_typ |= (0b01 << 16);
+    } else if (rtype == R3 || rtype == R4) {
+        // Index & CRC Checks: Disabled.
+        cmd_xfr_typ &= ~BIT(20);
+        cmd_xfr_typ &= ~BIT(19);
+        cmd_xfr_typ |= (0b10 << 16); //RSPTYP
+    } else if (rtype == R1 || rtype == R5 || rtype == R6) {
+        // Index & CRC Checks: Enabled.
+        cmd_xfr_typ |= BIT(20);
+        cmd_xfr_typ |= BIT(19);
+        cmd_xfr_typ |= (0b10 << 16); //RSPTYP
+    } else if (rtype == R1b || rtype == R5b) {
+        // Index & CRC Checks: Enabled.
+        cmd_xfr_typ |= BIT(20);
+        cmd_xfr_typ |= BIT(19);
+        cmd_xfr_typ |= (0b11 << 16); //RSPTYP
+    }
+
+    // CMDTYP (23-22): Nothing needs this, as not suspend/resume/abort YET (TODO)
+    // cmd_xfr_typ |= (0b00 << 22);
+
+    return cmd_xfr_typ;
+}
+
 /* Ref: 10.3.4.1 Command send & response receive basic operation.
 
     cmd_index: These bits are set to the command number that is specified in
                bits 45-40 of the command-format in the SD Memory Card Physical
                Layer Specification and SDIO Card Specification.
  */
-void usdhc_send_command_poll(uint8_t cmd_index)
+void usdhc_send_command_poll(uint8_t cmd_index, uint32_t cmd_arg)
 {
     // The host driver checks the Command Inhibit DAT field (PRES_STATE[CDIHB]) and
     // the \Command Inhibit CMD field (PRES_STATE[CIHB]) in the Present State register
@@ -59,16 +128,7 @@ void usdhc_send_command_poll(uint8_t cmd_index)
         while (usdhc_regs->pres_state & (USDHC_PRES_STATE_CIHB | USDHC_PRES_STATE_CDIHB));
     }
 
-
-    uint32_t cmd_arg = 0; // TODO:
-    /* "set CMDTYP, DPSEL, CICEN, CCCEN, RSTTYP, DTDSEL accorind to the command index" */
-    uint32_t cmd_xfr_typ = 0;     // CMD_XFR_TYP see 10.3.7.1.5 of the spec for details of fields
-    cmd_xfr_typ |= (cmd_index & 0b111111) << 24; /* 29-24 CMDINX */
-    cmd_xfr_typ |= (0b00 << 22); /* CMDTYP (23-22, normal) */
-    cmd_xfr_typ &= BIT(21); /* set to 0b for no data. FOR GO_IDLE_STATE; TODO!!!! */
-    cmd_xfr_typ &= BIT(20); /* don't check CICEN -> COMMAND DEPENDANT, see table 10-42 */
-    cmd_xfr_typ &= BIT(19); /* don't check CCCEN (crc) */
-    cmd_xfr_typ |= (0b00 << 16); /* response type: no response */
+    uint32_t cmd_xfr_typ = get_command_xfr_typ(cmd_index);
 
     // if (iinternal DMA)
     // if (multi-block transfer)
@@ -78,8 +138,13 @@ void usdhc_send_command_poll(uint8_t cmd_index)
     usdhc_regs->cmd_xfr_typ = cmd_xfr_typ;
     usdhc_unmask_interrupts();
 
+    sddf_printf("cmd: %u\n", cmd_xfr_typ);
+
     // wait for command completion (polling; TODO: interrupt!; also timeout?)
-    while (!(usdhc_regs->int_status & USDHC_INT_STATUS_CC));
+    // while (!(usdhc_regs->int_status & USDHC_INT_STATUS_CC));
+    while(!(usdhc_regs->int_status));
+
+    sddf_printf("cmd: %u\n", usdhc_regs->int_status);
 
     uint32_t status = usdhc_regs->int_status;
     if (status & USDHC_INT_STATUS_CTOE) {
@@ -161,7 +226,7 @@ void usdhc_reset(void)
     usdhc_regs->sys_ctrl |= USDHC_SYS_CTRL_INITA;
     while (!(usdhc_regs->sys_ctrl & USDHC_SYS_CTRL_INITA));
 
-    usdhc_send_command_poll(USDHC_CMD_GO_IDLE_STATE);
+    usdhc_send_command_poll(USDHC_CMD_GO_IDLE_STATE, 0x0);
 }
 
 void usdhc_read_support_voltages() {
@@ -237,14 +302,19 @@ void init()
     usdhc_setup_iomuxc();
     usdhc_reset();
 
-    if (usdhc_regs->pres_state & USDHC_PRES_STATE_CINST) {
-        sddf_printf("card inserted\n");
-    } else {
-        sddf_printf("card not inserted or power on reset\n");
-    }
+    // TODO: This appears to be broken and does not work at all; Linux does not
+    //       even notice when the card is inserted/removed....
+    // if (usdhc_regs->pres_state & USDHC_PRES_STATE_CINST) {
+    //     sddf_printf("card inserted\n");
+    // } else {
+    //     sddf_printf("card not inserted or power on reset\n");
+    // }
+
+
+    // TODO: 10.3.4.2.1 Card detect => card detect seems broken
+
+    // voltage validation
+    usdhc_send_command_poll(USDHC_CMD_IO_SEND_OP_COND, 0x0);
 
     usdhc_debug();
-
-    // TODO: 10.3.4.2.1 Card detect
-    // TODO: I think I need to set up GPIO pinmux etc?
 }
