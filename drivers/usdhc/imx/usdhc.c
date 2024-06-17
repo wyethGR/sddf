@@ -40,7 +40,8 @@ void usdhc_mask_interrupts() {
 }
 
 void usdhc_unmask_interrupts() {
-    usdhc_regs->int_signal_en = 0xfffffff;
+    // TODO: Reenable lol, atm we just use polling
+    // usdhc_regs->int_signal_en = 0xfffffff;
 }
 
 typedef enum {
@@ -61,16 +62,19 @@ uint32_t get_command_xfr_typ(uint8_t cmd_index) {
     uint32_t cmd_xfr_typ = (cmd_index & 0b111111) << 24;
     response_type_t rtype;
 
-    if (cmd_index == USDHC_CMD_GO_IDLE_STATE) {
+    if (cmd_index == SD_CMD0_GO_IDLE_STATE) {
         cmd_xfr_typ &= ~BIT(21); /* DPSEL OFF */
         rtype = RNone;
-    } else if (cmd_index == USDHC_CMD_IO_SEND_OP_COND) {
-        cmd_xfr_typ |= BIT(21); /* DPSEL ON */
-        rtype = R4;
-    } else if (cmd_index == USDHC_CMD_SEND_EXT_CSD) {
+    } else if (cmd_index == SD_CMD8_SEND_IF_COND) {
+        rtype = R7;
+    } else if (cmd_index == SD_ACMD41_SD_SEND_OP_COND) {
+        // app specific (ACMD41, not true cmd41...)
+        // TODO: better way...
+        rtype = R3;
+    } else if (cmd_index == SD_CMD55_APP_CMD) {
         rtype = R1;
     } else {
-        microkit_dbg_puts("unknown command :(");
+        sddf_printf("unknown command %u\n", cmd_index);
         return 0; // BAD! lol
     }
 
@@ -78,7 +82,9 @@ uint32_t get_command_xfr_typ(uint8_t cmd_index) {
     //     cmd_xfr_typ |= DPSEL;
     // }
 
-    /* Ref: Table 10-42. */
+    /* Ref: Table 10-42.
+            R7 not in there but it's basically R1...
+    */
     if (rtype == RNone) {
         // Index & CRC Checks: Disabled. RSPTYP: 00b.
         cmd_xfr_typ &= ~BIT(20);
@@ -94,7 +100,7 @@ uint32_t get_command_xfr_typ(uint8_t cmd_index) {
         cmd_xfr_typ &= ~BIT(20);
         cmd_xfr_typ &= ~BIT(19);
         cmd_xfr_typ |= (0b10 << 16); //RSPTYP
-    } else if (rtype == R1 || rtype == R5 || rtype == R6) {
+    } else if (rtype == R1 || rtype == R5 || rtype == R6 || rtype == R7) {
         // Index & CRC Checks: Enabled.
         cmd_xfr_typ |= BIT(20);
         cmd_xfr_typ |= BIT(19);
@@ -104,6 +110,8 @@ uint32_t get_command_xfr_typ(uint8_t cmd_index) {
         cmd_xfr_typ |= BIT(20);
         cmd_xfr_typ |= BIT(19);
         cmd_xfr_typ |= (0b11 << 16); //RSPTYP
+    } else {
+        sddf_printf("unknown rtype!\n");
     }
 
     // CMDTYP (23-22): Nothing needs this, as not suspend/resume/abort YET (TODO)
@@ -112,20 +120,24 @@ uint32_t get_command_xfr_typ(uint8_t cmd_index) {
     return cmd_xfr_typ;
 }
 
+// SEe 10.3.7.1.9.2 for mapping of the responses (section 4-9 of SD card spec)
+// too the bits of the responses
+
 /* Ref: 10.3.4.1 Command send & response receive basic operation.
 
     cmd_index: These bits are set to the command number that is specified in
                bits 45-40 of the command-format in the SD Memory Card Physical
                Layer Specification and SDIO Card Specification.
  */
-void usdhc_send_command_poll(uint8_t cmd_index, uint32_t cmd_arg)
+bool usdhc_send_command_poll(uint8_t cmd_index, uint32_t cmd_arg)
 {
     // The host driver checks the Command Inhibit DAT field (PRES_STATE[CDIHB]) and
     // the \Command Inhibit CMD field (PRES_STATE[CIHB]) in the Present State register
     // before writing to this register.
     if (usdhc_regs->pres_state & (USDHC_PRES_STATE_CIHB | USDHC_PRES_STATE_CDIHB)) {
-        sddf_printf("no work :(\n");
-        while (usdhc_regs->pres_state & (USDHC_PRES_STATE_CIHB | USDHC_PRES_STATE_CDIHB));
+        sddf_printf("waiting for command inhibit fields to clear... pres: %u, int_status: %u\n", usdhc_regs->pres_state, usdhc_regs->int_status);
+        // TODO: how do properly reset these after a command timeout, because i'm not at the moment...
+        // while (usdhc_regs->pres_state & (USDHC_PRES_STATE_CIHB | USDHC_PRES_STATE_CDIHB));
     }
 
     uint32_t cmd_xfr_typ = get_command_xfr_typ(cmd_index);
@@ -133,19 +145,18 @@ void usdhc_send_command_poll(uint8_t cmd_index, uint32_t cmd_arg)
     // if (iinternal DMA)
     // if (multi-block transfer)
 
+    // TODO: app specific commands (4.3.9 part 1 physical layer spec)
+
+    sddf_printf("running cmd %u with arg %u, xfr_typ: %u\n", cmd_index, cmd_arg, cmd_xfr_typ);
     usdhc_mask_interrupts();
     usdhc_regs->cmd_arg = cmd_arg;
     usdhc_regs->cmd_xfr_typ = cmd_xfr_typ;
     usdhc_unmask_interrupts();
 
-    sddf_printf("cmd: %u\n", cmd_xfr_typ);
-
     // wait for command completion (polling; TODO: interrupt!; also timeout?)
-    // while (!(usdhc_regs->int_status & USDHC_INT_STATUS_CC));
     while(!(usdhc_regs->int_status));
 
-    sddf_printf("cmd: %u\n", usdhc_regs->int_status);
-
+    bool success = false;
     uint32_t status = usdhc_regs->int_status;
     if (status & USDHC_INT_STATUS_CTOE) {
         /* command timeout error */
@@ -161,13 +172,18 @@ void usdhc_send_command_poll(uint8_t cmd_index, uint32_t cmd_arg)
         sddf_printf("command end bit error\n");
     } else {
         sddf_printf("success!\n");
+        success = true;
     }
 
     /* clear CC bit and all command error bits... */
-    usdhc_regs->int_status |= USDHC_INT_STATUS_CC;
+    /* n.b. writing 1 clears it ! lol.... */
+    usdhc_regs->int_status = USDHC_INT_STATUS_CC;
 
     // TODO: for getting a response...
     // uint32_t rsp0 = usdhc_regs->cmd_rsp0;
+
+    // TODO: We should handle timeouts vs errors differently...
+    return success;
 }
 
 /* false -> clock is changing frequency and not stable (poll until is).
@@ -213,12 +229,13 @@ void usdhc_reset(void)
 
     usdhc_setup_clock(/* 400 kHz */);
 
-    usdhc_regs->int_status_en |= USDHC_INT_STATUS_TCSEN | USDHC_INT_STATUS_DINTSEN
-                              | USDHC_INT_STATUS_BRRSEN | USDHC_INT_STATUS_CINTSEN
-                              | USDHC_INT_STATUS_CTOESEN | USDHC_INT_STATUS_CCESEN
-                              | USDHC_INT_STATUS_CEBESEN | USDHC_INT_STATUS_CIESEN
-                              | USDHC_INT_STATUS_DTOESEN | USDHC_INT_STATUS_DCSESEN
-                              | USDHC_INT_STATUS_DEBESEN;
+    // TODO: Interrupts disabled for now, let's just using polling...
+    // usdhc_regs->int_status_en |= USDHC_INT_STATUS_TCSEN | USDHC_INT_STATUS_DINTSEN
+    //                           | USDHC_INT_STATUS_BRRSEN | USDHC_INT_STATUS_CINTSEN
+    //                           | USDHC_INT_STATUS_CTOESEN | USDHC_INT_STATUS_CCESEN
+    //                           | USDHC_INT_STATUS_CEBESEN | USDHC_INT_STATUS_CIESEN
+    //                           | USDHC_INT_STATUS_DTOESEN | USDHC_INT_STATUS_DCSESEN
+    //                           | USDHC_INT_STATUS_DEBESEN;
 
     while (usdhc_regs->pres_state & (USDHC_PRES_STATE_CIHB | USDHC_PRES_STATE_CDIHB));
 
@@ -226,12 +243,15 @@ void usdhc_reset(void)
     usdhc_regs->sys_ctrl |= USDHC_SYS_CTRL_INITA;
     while (!(usdhc_regs->sys_ctrl & USDHC_SYS_CTRL_INITA));
 
-    usdhc_send_command_poll(USDHC_CMD_GO_IDLE_STATE, 0x0);
+    if (!usdhc_send_command_poll(SD_CMD0_GO_IDLE_STATE, 0x0)) {
+        sddf_printf("reset failed...\n");
+    }
 }
 
-void usdhc_read_support_voltages() {
+bool usdhc_supports_3v3_operation() {
+    // it also supporsts 1.8/3.0/3.3 but for laziness:
     uint32_t host_cap = usdhc_regs->host_ctrl_cap;
-    sddf_printf("host caps: %u\n", host_cap);
+    return host_cap & BIT(24);
 }
 
 #define IOMUX_ALT0 0b000
@@ -293,6 +313,112 @@ void usdhc_setup_iomuxc() {
     *(iomuxc_regs + 0x2AC) |= IOMUX_PAD_CTL_PULLUP; /* USDHC1_WP : IOMUXC_SW_PAD_CTL_PAD_GPIO1_IO07 */
 }
 
+// TODO: Also see 4.8 Card State Transition Table
+
+/* Figure 4-2 Card Initialization and Identification Flow of
+   Physical Layer Simplified Specification Ver9.10 20231201 */
+void shared_sd_setup() {
+    // 0x1AA corresponds to Table 4-18 of the spec, with VHS = 2.7-3.6V
+    // When the card is in Idle state, the host shall issue CMD8 before ACMD41. In the argument, 'voltage
+    // supplied' is set to the host supply voltage and 'check pattern' is set to any 8-bit pattern
+    bool success = usdhc_send_command_poll(SD_CMD8_SEND_IF_COND, 0x1AA);
+    if (!success) {
+        /* let's assume it's a timeout! (TODO, lol) */
+        usdhc_regs->int_status |= USDHC_INT_STATUS_CTOE;
+
+        /* Flowchart: - Ver2.00 or later SD Memory Card(voltage mismatch)
+                      - or Ver1.X SD Memory Card
+                      - or not SD Memory Card*/
+
+        sddf_printf("not hanled\nn");
+        return;
+
+        // Ver 1.x Standard Capacity SD Memory Card!!!
+            /*
+            ???????????
+                Exception in ACMD41
+                    - The response of ACMD41 does not have APP_CMD status. Sending the response of CMD41 in idle
+                    state means the card is accepted as legal ACMD41.
+                    - As APP_CMD status is defined as "clear by read", APP_CMD status, which is set by ACMD41, may
+                    be indicated in the response of next CMD11 or CMD3. However, as ACMD11 and ACMD3 are not
+                    defined, it is not necessary to set APP_CMD status.
+                    - Host should ignore APP_CMD status in the response of CMD11 and CMD3.
+            */
+        // for R3 (ACDMD41), cmdrsp0 has R[39:8] which is the OCR register accorinnd to table 4-31 (and table 4-38)
+        // see §5.1 OCR Register
+        // sddf_printf("ocr register: %u\n", ocr_register);
+    } else {
+        uint32_t r7_resp = usdhc_regs->cmd_rsp0;
+        // See Table 4-40; R[39:8].
+        if ((r7_resp & 0xFFF) != 0x1AA) {
+            // echoed check pattern wrong & accepted voltage
+            sddf_printf("check pattern wrong... %u, wanted %u (full: %u)\n", r7_resp & 0xFFF, 0x1AA, r7_resp);
+            return;
+        }
+
+        sddf_printf("yay!\n");
+
+        uint32_t ocr_register;
+        uint32_t voltage_window = 0; // 0 => inquiry at first.
+        do {
+            /* do ACMD41; first, send APP_CMD... */
+            success = usdhc_send_command_poll(SD_CMD55_APP_CMD, 0x0);
+            if (!success) {
+                sddf_printf("oh no this errored....");
+                return;
+            }
+
+            // Check APP_CMD in the card status response, i.e. R[39:8] i.e. rsp0.
+            // description: 4.10; bit 5 is app_cmd for next command....
+            // app specific: see section 4.3.9
+            uint32_t card_status = usdhc_regs->cmd_rsp0;
+            if (!(card_status & BIT(5))) {
+                sddf_printf("not expected an app command\n");
+                return;
+            }
+
+            // Flowchart: ACMD41 with HCS=0
+            // also 4.2.3.1 voltage window is 0 => inquiry
+            // voltage window is bits 23-0 (so 24 bits i..e 0xffffff mask)
+            // needs BIT(30) for SDHC otherwise loops
+            success = usdhc_send_command_poll(SD_ACMD41_SD_SEND_OP_COND, BIT(30) | (voltage_window & 0xffffff));
+            if (!success) {
+                sddf_printf("Not SD Memory Card...\n");
+                usdhc_debug();
+                return;
+            }
+
+            ocr_register = usdhc_regs->cmd_rsp0;
+            if (!(ocr_register & BIT(31))) {
+                sddf_printf("still initialising, trying again %u\n", ocr_register);
+            }
+
+            if (!(usdhc_supports_3v3_operation() && ((ocr_register & BIT(19)) || (ocr_register & BIT(20))))) {
+                sddf_printf("not compatible both with 3v3; might be others shared compat\n");
+                return;
+            }
+
+            voltage_window = BIT(19) | BIT(20); // 3v2->3v3 & 3v3->3v4.
+
+            volatile int32_t i = 0xffffff;
+            while (i > 0) {
+                i--; // blursed busy loop
+            }
+            // TODO: At the momoent
+        /* Receiving of CMD8 expands the ACMD41 function; HCS in the argument and CCS (Card Capacity
+Status) in the response. HCS is ignored by cards, which didn't respond to CMD8. However the host should
+set HCS to 0 if the card returns no response to CMD8. Standard Capacity SD Memory Card ignores HCS.
+If HCS is set to 0, SDHC and SDXC Cards never return ready status (keep busy bit to 0). The busy bit in
+the OCR is used by the card to inform the host whether initialization of ACMD41 is completed. Setting the
+busy bit to 0 indicates that the card is still initializing. Setting the busy bit to 1 indicates completion of
+initialization. Card initialization shall be completed within 1 second from the first ACMD41. The host
+repeatedly issues ACMD41 for at least 1 second or until the busy bit are set to 1.
+The card checks the operational conditions and the HCS bit in the OCR only at the*/
+        } while (!(ocr_register & BIT(31)));
+    }
+
+}
+
 void init()
 {
     microkit_dbg_puts("hello from usdhc driver\n");
@@ -309,12 +435,8 @@ void init()
     // } else {
     //     sddf_printf("card not inserted or power on reset\n");
     // }
-
-
-    // TODO: 10.3.4.2.1 Card detect => card detect seems broken
-
-    // voltage validation
-    usdhc_send_command_poll(USDHC_CMD_IO_SEND_OP_COND, 0x0);
+    // 10.3.4.2.1 Card detect => card detect seems broken
 
     usdhc_debug();
+    shared_sd_setup();
 }
