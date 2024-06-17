@@ -121,8 +121,10 @@ typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 
 
 /* GENERIC? */
-#define SD_CMD0_GO_IDLE_STATE 0
-#define SD_CMD8_SEND_IF_COND  8
-#define SD_CMD55_APP_CMD      55
+#define SD_CMD0_GO_IDLE_STATE      0
+#define SD_CMD2_ALL_SEND_CID       2
+#define SD_CMD3_SEND_RELATIVE_ADDR 3
+#define SD_CMD8_SEND_IF_COND       8
+#define SD_CMD55_APP_CMD           55
 
 #define SD_ACMD41_SD_SEND_OP_COND 41

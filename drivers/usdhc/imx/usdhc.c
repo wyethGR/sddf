@@ -65,6 +65,10 @@ uint32_t get_command_xfr_typ(uint8_t cmd_index) {
     if (cmd_index == SD_CMD0_GO_IDLE_STATE) {
         cmd_xfr_typ &= ~BIT(21); /* DPSEL OFF */
         rtype = RNone;
+    } else if (cmd_index == SD_CMD2_ALL_SEND_CID) {
+        rtype = R2;
+    } else if (cmd_index == SD_CMD3_SEND_RELATIVE_ADDR) {
+        rtype = R6;
     } else if (cmd_index == SD_CMD8_SEND_IF_COND) {
         rtype = R7;
     } else if (cmd_index == SD_ACMD41_SD_SEND_OP_COND) {
@@ -156,34 +160,32 @@ bool usdhc_send_command_poll(uint8_t cmd_index, uint32_t cmd_arg)
     // wait for command completion (polling; TODO: interrupt!; also timeout?)
     while(!(usdhc_regs->int_status));
 
-    bool success = false;
+    // TODO: at the moment if we hae an error it's up to the caller to dea with it...
+
     uint32_t status = usdhc_regs->int_status;
     if (status & USDHC_INT_STATUS_CTOE) {
         /* command timeout error */
         sddf_printf("command timeout error\n");
+        return false;
     } else if (status & USDHC_INT_STATUS_CCE) {
         /* command CRC error */
         sddf_printf("command crc error\n");
+        return false;
     } else if (status & USDHC_INT_STATUS_CIE) {
         /* command index error */
         sddf_printf("command index error\n");
+        return false;
     } else if (status & USDHC_INT_STATUS_CEBE) {
         /* command end bit error */
         sddf_printf("command end bit error\n");
-    } else {
-        sddf_printf("success!\n");
-        success = true;
+        return false;
     }
 
     /* clear CC bit and all command error bits... */
     /* n.b. writing 1 clears it ! lol.... */
     usdhc_regs->int_status = USDHC_INT_STATUS_CC;
 
-    // TODO: for getting a response...
-    // uint32_t rsp0 = usdhc_regs->cmd_rsp0;
-
-    // TODO: We should handle timeouts vs errors differently...
-    return success;
+    return true;
 }
 
 /* false -> clock is changing frequency and not stable (poll until is).
@@ -400,7 +402,7 @@ void shared_sd_setup() {
 
             voltage_window = BIT(19) | BIT(20); // 3v2->3v3 & 3v3->3v4.
 
-            volatile int32_t i = 0xffffff;
+            volatile int32_t i = 0xfffffff;
             while (i > 0) {
                 i--; // blursed busy loop
             }
@@ -415,6 +417,33 @@ initialization. Card initialization shall be completed within 1 second from the 
 repeatedly issues ACMD41 for at least 1 second or until the busy bit are set to 1.
 The card checks the operational conditions and the HCS bit in the OCR only at the*/
         } while (!(ocr_register & BIT(31)));
+
+        if (ocr_register & BIT(30)) {
+            /* CCS=1, Ver2.00 or later hih/extended capciaty*/
+            sddf_printf("Ver2.00 or later High Capacity or Extended Capacity SD Memory Card\n");
+        } else {
+            sddf_printf("Ver2.00 or later Standard Capacity SD Memory Card\n");
+        }
+
+        success = usdhc_send_command_poll(SD_CMD2_ALL_SEND_CID, 0x0);
+        if (!success) {
+            sddf_printf(":( couldn't get CID nnumbers\n");
+            return;
+        }
+
+        // print out rsp0->rsp3, but we don't actually care lol...
+        usdhc_debug();
+
+        success = usdhc_send_command_poll(SD_CMD3_SEND_RELATIVE_ADDR, 0x0);
+        if (!success) {
+            sddf_printf("couldn't set RCA\n");
+            return;
+        }
+
+        uint16_t rca = (usdhc_regs->cmd_rsp0 >> 16);
+        sddf_printf("rca: %u\n", rca);
+
+        // TODO: we could, in theory, repeat CMD2/CMD3 for multiple cards.
     }
 
 }
