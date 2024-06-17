@@ -6,44 +6,28 @@
     ],
     "maps": [
         {
-            "name": "serial_driver_uart_meson",
-            "perms": "rw",
-            "cached": false,
-            "setvar_vaddr": "uart_base",
-            "page_size": 4096,
-            "size": 4096
-        },
-        {
             "name": "serial_driver_tx_data",
             "perms": "rw",
             "cached": true,
-            "setvar_vaddr": "tx_data",
-            "page_size": 2097152,
-            "size": 2097152
+            "setvar_vaddr": "tx_data"
         },
         {
             "name": "serial_driver_rx_data",
             "perms": "rw",
             "cached": true,
-            "setvar_vaddr": "rx_data",
-            "page_size": 2097152,
-            "size": 2097152
-        },
-        {
-            "name": "serial_driver_rx_queue",
-            "perms": "rw",
-            "cached": false,
-            "setvar_vaddr": "rx_queue",
-            "page_size": 4096,
-            "size": 4096
+            "setvar_vaddr": "rx_data"
         },
         {
             "name": "serial_driver_tx_queue",
             "perms": "rw",
-            "cached": false,
-            "setvar_vaddr": "tx_queue",
-            "page_size": 4096,
-            "size": 4096
+            "cached": true,
+            "setvar_vaddr": "tx_queue"
+        },
+        {
+            "name": "serial_driver_rx_queue",
+            "perms": "rw",
+            "cached": true,
+            "setvar_vaddr": "rx_queue"
         }
     ],
     "irqs": [
