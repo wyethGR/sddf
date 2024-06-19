@@ -119,12 +119,38 @@ typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 /* VEND_SPEC BIts. See 10.3.7.1.29 */
 #define USDHC_VEND_SPEC_FRC_SDCLK_ON BIT(8) /* Force CLK output active. */
 
+typedef enum {
+    RespType_None = 0,
+    RespType_R1,
+    RespType_R1b,
+    RespType_R2,
+    RespType_R3,
+    RespType_R4,
+    RespType_R5,
+    RespType_R5b, // TODO: imx8 made this up lol, see note after table 10-42.
+    RespType_R6,
+    RespType_R7,
+} response_type_t;
+
+typedef struct {
+    uint8_t cmd_index;
+    response_type_t cmd_response_type;
+    bool is_app_cmd;
+} sd_cmd_t;
+
+#define _SD_CMD_DEF(number, rtype)  (sd_cmd_t){.cmd_index = (number), .cmd_response_type = (rtype), .is_app_cmd = false}
+#define _SD_ACMD_DEF(number, rtype) (sd_cmd_t){.cmd_index = (number), .cmd_response_type = (rtype), .is_app_cmd = true}
 
 /* GENERIC? */
-#define SD_CMD0_GO_IDLE_STATE      0
-#define SD_CMD2_ALL_SEND_CID       2
-#define SD_CMD3_SEND_RELATIVE_ADDR 3
-#define SD_CMD8_SEND_IF_COND       8
-#define SD_CMD55_APP_CMD           55
+#define SD_CMD0_GO_IDLE_STATE      _SD_CMD_DEF(0, RespType_None)
+#define SD_CMD2_ALL_SEND_CID       _SD_CMD_DEF(2, RespType_R2)
+#define SD_CMD3_SEND_RELATIVE_ADDR _SD_CMD_DEF(3, RespType_R6)
+#define SD_CMD7_CARD_SELECT        _SD_CMD_DEF(7, RespType_R1b)
+#define SD_CMD8_SEND_IF_COND       _SD_CMD_DEF(8, RespType_R7)
+#define SD_CMD55_APP_CMD           _SD_CMD_DEF(55, RespType_R1)
 
-#define SD_ACMD41_SD_SEND_OP_COND 41
+#define SD_ACMD41_SD_SEND_OP_COND  _SD_ACMD_DEF(41, RespType_R3)
+
+
+/* See Section 4.10.1 / Table 4-42 definitions */
+#define SD_CARD_STATUS_APP_CMD  BIT(5)

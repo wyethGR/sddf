@@ -44,42 +44,13 @@ void usdhc_unmask_interrupts() {
     // usdhc_regs->int_signal_en = 0xfffffff;
 }
 
-typedef enum {
-    RNone,
-    R1,
-    R1b,
-    R2,
-    R3,
-    R4,
-    R5,
-    R5b, // TODO: imx8 made this up lol, see note after table 10-42.
-    R6,
-    R7,
-} response_type_t;
-
-uint32_t get_command_xfr_typ(uint8_t cmd_index) {
+uint32_t get_command_xfr_typ(sd_cmd_t cmd) {
     // Set bits 29-24 (CMDINDX).
-    uint32_t cmd_xfr_typ = (cmd_index & 0b111111) << 24;
-    response_type_t rtype;
+    uint32_t cmd_xfr_typ = (cmd.cmd_index & 0b111111) << 24;
+    response_type_t rtype = cmd.cmd_response_type;
 
-    if (cmd_index == SD_CMD0_GO_IDLE_STATE) {
+    if (cmd.cmd_index == SD_CMD0_GO_IDLE_STATE.cmd_index) {
         cmd_xfr_typ &= ~BIT(21); /* DPSEL OFF */
-        rtype = RNone;
-    } else if (cmd_index == SD_CMD2_ALL_SEND_CID) {
-        rtype = R2;
-    } else if (cmd_index == SD_CMD3_SEND_RELATIVE_ADDR) {
-        rtype = R6;
-    } else if (cmd_index == SD_CMD8_SEND_IF_COND) {
-        rtype = R7;
-    } else if (cmd_index == SD_ACMD41_SD_SEND_OP_COND) {
-        // app specific (ACMD41, not true cmd41...)
-        // TODO: better way...
-        rtype = R3;
-    } else if (cmd_index == SD_CMD55_APP_CMD) {
-        rtype = R1;
-    } else {
-        sddf_printf("unknown command %u\n", cmd_index);
-        return 0; // BAD! lol
     }
 
     // if (data) {
@@ -89,27 +60,27 @@ uint32_t get_command_xfr_typ(uint8_t cmd_index) {
     /* Ref: Table 10-42.
             R7 not in there but it's basically R1...
     */
-    if (rtype == RNone) {
+    if (rtype == RespType_None) {
         // Index & CRC Checks: Disabled. RSPTYP: 00b.
         cmd_xfr_typ &= ~BIT(20);
         cmd_xfr_typ &= ~BIT(19);
         cmd_xfr_typ |= (0b00 << 16);
-    } else if (rtype == R2) {
+    } else if (rtype == RespType_R2) {
         // Index Check: Disabled, CRC Check: Enabled
         cmd_xfr_typ &= ~BIT(20);
         cmd_xfr_typ |= BIT(19);
         cmd_xfr_typ |= (0b01 << 16);
-    } else if (rtype == R3 || rtype == R4) {
+    } else if (rtype == RespType_R3 || rtype == RespType_R4) {
         // Index & CRC Checks: Disabled.
         cmd_xfr_typ &= ~BIT(20);
         cmd_xfr_typ &= ~BIT(19);
         cmd_xfr_typ |= (0b10 << 16); //RSPTYP
-    } else if (rtype == R1 || rtype == R5 || rtype == R6 || rtype == R7) {
+    } else if (rtype == RespType_R1 || rtype == RespType_R5 || rtype == RespType_R6 || rtype == RespType_R7) {
         // Index & CRC Checks: Enabled.
         cmd_xfr_typ |= BIT(20);
         cmd_xfr_typ |= BIT(19);
         cmd_xfr_typ |= (0b10 << 16); //RSPTYP
-    } else if (rtype == R1b || rtype == R5b) {
+    } else if (rtype == RespType_R1b || rtype == RespType_R5b) {
         // Index & CRC Checks: Enabled.
         cmd_xfr_typ |= BIT(20);
         cmd_xfr_typ |= BIT(19);
@@ -133,8 +104,26 @@ uint32_t get_command_xfr_typ(uint8_t cmd_index) {
                bits 45-40 of the command-format in the SD Memory Card Physical
                Layer Specification and SDIO Card Specification.
  */
-bool usdhc_send_command_poll(uint8_t cmd_index, uint32_t cmd_arg)
+bool usdhc_send_command_poll(sd_cmd_t cmd, uint32_t cmd_arg)
 {
+    /* See description of App-Specific commands in §4.3.9 */
+    if (cmd.is_app_cmd) {
+        bool success = usdhc_send_command_poll(SD_CMD55_APP_CMD, 0x0);
+        if (!success) {
+            sddf_printf("couldn't send CMD55_APP_CMD");
+            return false;
+        }
+
+        // Check APP_CMD in the card status to ensure was recognised as such
+        // 4.10; bit 5 is app_cmd for next command....
+        uint32_t card_status = usdhc_regs->cmd_rsp0;
+        if (!(card_status & SD_CARD_STATUS_APP_CMD)) {
+            sddf_printf("card is not expecting next command to be an ACMD...\n");
+            return false;
+        }
+    }
+
+
     // The host driver checks the Command Inhibit DAT field (PRES_STATE[CDIHB]) and
     // the \Command Inhibit CMD field (PRES_STATE[CIHB]) in the Present State register
     // before writing to this register.
@@ -144,14 +133,14 @@ bool usdhc_send_command_poll(uint8_t cmd_index, uint32_t cmd_arg)
         // while (usdhc_regs->pres_state & (USDHC_PRES_STATE_CIHB | USDHC_PRES_STATE_CDIHB));
     }
 
-    uint32_t cmd_xfr_typ = get_command_xfr_typ(cmd_index);
+    uint32_t cmd_xfr_typ = get_command_xfr_typ(cmd);
 
     // if (iinternal DMA)
     // if (multi-block transfer)
 
     // TODO: app specific commands (4.3.9 part 1 physical layer spec)
 
-    sddf_printf("running cmd %u with arg %u, xfr_typ: %u\n", cmd_index, cmd_arg, cmd_xfr_typ);
+    sddf_printf("running cmd %u with arg %u, xfr_typ: %u\n", cmd.cmd_index, cmd_arg, cmd_xfr_typ);
     usdhc_mask_interrupts();
     usdhc_regs->cmd_arg = cmd_arg;
     usdhc_regs->cmd_xfr_typ = cmd_xfr_typ;
@@ -315,6 +304,10 @@ void usdhc_setup_iomuxc() {
     *(iomuxc_regs + 0x2AC) |= IOMUX_PAD_CTL_PULLUP; /* USDHC1_WP : IOMUXC_SW_PAD_CTL_PAD_GPIO1_IO07 */
 }
 
+static struct {
+    uint32_t rca;
+} card_info;
+
 // TODO: Also see 4.8 Card State Transition Table
 
 /* Figure 4-2 Card Initialization and Identification Flow of
@@ -358,27 +351,9 @@ void shared_sd_setup() {
             return;
         }
 
-        sddf_printf("yay!\n");
-
         uint32_t ocr_register;
         uint32_t voltage_window = 0; // 0 => inquiry at first.
         do {
-            /* do ACMD41; first, send APP_CMD... */
-            success = usdhc_send_command_poll(SD_CMD55_APP_CMD, 0x0);
-            if (!success) {
-                sddf_printf("oh no this errored....");
-                return;
-            }
-
-            // Check APP_CMD in the card status response, i.e. R[39:8] i.e. rsp0.
-            // description: 4.10; bit 5 is app_cmd for next command....
-            // app specific: see section 4.3.9
-            uint32_t card_status = usdhc_regs->cmd_rsp0;
-            if (!(card_status & BIT(5))) {
-                sddf_printf("not expected an app command\n");
-                return;
-            }
-
             // Flowchart: ACMD41 with HCS=0
             // also 4.2.3.1 voltage window is 0 => inquiry
             // voltage window is bits 23-0 (so 24 bits i..e 0xffffff mask)
@@ -440,11 +415,12 @@ The card checks the operational conditions and the HCS bit in the OCR only at th
             return;
         }
 
-        uint16_t rca = (usdhc_regs->cmd_rsp0 >> 16);
-        sddf_printf("rca: %u\n", rca);
+        card_info.rca = (usdhc_regs->cmd_rsp0 >> 16);
+        sddf_printf("rca: %u\n", card_info.rca);
 
         // TODO: we could, in theory, repeat CMD2/CMD3 for multiple cards.
     }
+}
 
 }
 
