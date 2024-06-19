@@ -47,8 +47,20 @@ struct imx_usdhc_regs {
 };
 typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 
+/* BLK_ATT Bits. See 10.3.7.1.3 */
+#define USDHC_BLK_ATT_BLKSIZE_SHIFT 0              /* Transfer block size    */
+#define USDHC_BLK_ATT_BLKSIZE_MASK  (BIT(13) - 1)  /* 13 Bits: BLK_ATT[12-0] */
+
+/* CMD_XFR_TYP Bits. See 10.3.7.1.5 */
+#define USDHC_CMD_XFR_TYP_DMAEN BIT(0)  /* DMA enable */
+#define USDHC_CMD_XFR_TYP_CCCEN BIT(19) /* Command CRC check enable */
+#define USHDC_CMD_XFR_TYP_CICEN BIT(20) /* Command index check enable */
+#define USDHC_CMD_XFR_TYP_DPSEL BIT(21) /* Data present select */
+
+#define USDHC_CMD_XFR_TYP_RSPTYP_SHIFT 16           /* Response type select */
+#define USDHC_CMD_XFR_TYP_RSPTYP_MASK  (BIT(2) - 1) /* 2 Bits: XFR_TYP[17-16]*/
+
 /* PRES_STATE Bits. See 10.3.7.1.11 */
-// TODO: Rest.
 #define USDHC_PRES_STATE_CIHB  BIT(0)  /* Command inhibit (CMD) */
 #define USDHC_PRES_STATE_CDIHB BIT(1)  /* Command inhibit (DATA) */
 #define USDHC_PRES_STATE_SDSTB BIT(3)  /* SD clock stable */
@@ -63,34 +75,35 @@ typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 
 /* INT_STATUS Bits. See 10.3.7.1.14 */
 #define USDHC_INT_STATUS_CC   BIT(0)  /* Command complete. */
+#define USDHC_INT_STATUS_TC   BIT(1)  /* Transfer complete. */
 #define USDHC_INT_STATUS_CTOE BIT(16) /* Command timeout error. */
 #define USDHC_INT_STATUS_CCE  BIT(17) /* Command CRC error. */
 #define USDHC_INT_STATUS_CEBE BIT(18) /* Command end bit error */
 #define USDHC_INT_STATUS_CIE  BIT(19) /* Command index error. */
 
 /* INT_STATUS_EN Bits. See 10.3.7.1.15 */
-#define USDHC_INT_STATUS_CCSEN    BIT(0)   /* Command complete status enable */
-#define USDHC_INT_STATUS_TCSEN    BIT(1)   /* Transfer complete status enable */
-#define USDHC_INT_STATUS_BGESEN   BIT(2)   /* Block gap event status enable */
-#define USDHC_INT_STATUS_DINTSEN  BIT(3)   /* DMA interrupt status enable */
-#define USDHC_INT_STATUS_BWRSEN   BIT(4)   /* Buffer write ready status enable */
-#define USDHC_INT_STATUS_BRRSEN   BIT(5)   /* Buffer read ready status enable */
-#define USDHC_INT_STATUS_CINSSEN  BIT(6)   /* Card insertion status enable */
-#define USDHC_INT_STATUS_CRMSEN   BIT(7)   /* Card removal status enable */
-#define USDHC_INT_STATUS_CINTSEN  BIT(8)   /* Card interrupt status enable */
-#define USDHC_INT_STATUS_RTESEN   BIT(12)  /* Re-tuning event status enable */
-#define USDHC_INT_STATUS_TPSEN    BIT(13)  /* Tuning pass status enable */
-#define USDHC_INT_STATUS_CQISEN   BIT(14)  /* Command queuing status enable */
-#define USDHC_INT_STATUS_CTOESEN  BIT(16)  /* Command timeout error status enable */
-#define USDHC_INT_STATUS_CCESEN   BIT(17)  /* Command CRC error status enable */
-#define USDHC_INT_STATUS_CEBESEN  BIT(18)  /* Command end bit error status enable */
-#define USDHC_INT_STATUS_CIESEN   BIT(19)  /* Command indx error status enable */
-#define USDHC_INT_STATUS_DTOESEN  BIT(20)  /* Data timeout error status enable*/
-#define USDHC_INT_STATUS_DCSESEN  BIT(21)  /* Data CRC error status enable */
-#define USDHC_INT_STATUS_DEBESEN  BIT(22)  /* Data end bit error status enable */
-#define USDHC_INT_STATUS_AC12ESEN BIT(24)  /* Auto CMD12 error status enable */
-#define USDHC_INT_STATUS_TNESEN   BIT(26)  /* Tuning error status enable */
-#define USDHC_INT_STATUS_DMAESEN  BIT(28)  /* DMA error status enable */
+#define USDHC_INT_STATUS_EN_CCSEN    BIT(0)   /* Command complete status enable */
+#define USDHC_INT_STATUS_EN_TCSEN    BIT(1)   /* Transfer complete status enable */
+#define USDHC_INT_STATUS_EN_BGESEN   BIT(2)   /* Block gap event status enable */
+#define USDHC_INT_STATUS_EN_DINTSEN  BIT(3)   /* DMA interrupt status enable */
+#define USDHC_INT_STATUS_EN_BWRSEN   BIT(4)   /* Buffer write ready status enable */
+#define USDHC_INT_STATUS_EN_BRRSEN   BIT(5)   /* Buffer read ready status enable */
+#define USDHC_INT_STATUS_EN_CINSSEN  BIT(6)   /* Card insertion status enable */
+#define USDHC_INT_STATUS_EN_CRMSEN   BIT(7)   /* Card removal status enable */
+#define USDHC_INT_STATUS_EN_CINTSEN  BIT(8)   /* Card interrupt status enable */
+#define USDHC_INT_STATUS_EN_RTESEN   BIT(12)  /* Re-tuning event status enable */
+#define USDHC_INT_STATUS_EN_TPSEN    BIT(13)  /* Tuning pass status enable */
+#define USDHC_INT_STATUS_EN_CQISEN   BIT(14)  /* Command queuing status enable */
+#define USDHC_INT_STATUS_EN_CTOESEN  BIT(16)  /* Command timeout error status enable */
+#define USDHC_INT_STATUS_EN_CCESEN   BIT(17)  /* Command CRC error status enable */
+#define USDHC_INT_STATUS_EN_CEBESEN  BIT(18)  /* Command end bit error status enable */
+#define USDHC_INT_STATUS_EN_CIESEN   BIT(19)  /* Command indx error status enable */
+#define USDHC_INT_STATUS_EN_DTOESEN  BIT(20)  /* Data timeout error status enable*/
+#define USDHC_INT_STATUS_EN_DCSESEN  BIT(21)  /* Data CRC error status enable */
+#define USDHC_INT_STATUS_EN_DEBESEN  BIT(22)  /* Data end bit error status enable */
+#define USDHC_INT_STATUS_EN_AC12ESEN BIT(24)  /* Auto CMD12 error status enable */
+#define USDHC_INT_STATUS_EN_TNESEN   BIT(26)  /* Tuning error status enable */
+#define USDHC_INT_STATUS_EN_DMAESEN  BIT(28)  /* DMA error status enable */
 
 /* INT_SIGNAL_EN Bits. See 10.3.7.1.16 */
 #define USDHC_INT_SIGNAL_CCIEN    BIT(0)   /* Command complete interrupt enable */
@@ -116,9 +129,12 @@ typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 #define USDHC_INT_SIGNAL_TNEIEN   BIT(26)  /* Tuning error interrupt enable */
 #define USDHC_INT_SIGNAL_DMAEIEN  BIT(28)  /* DMA error interrupt enable */
 
+#define USDHC_MIX_CTRL_MSBSEL BIT(5) /* Mult / Single block select */
+
 /* VEND_SPEC BIts. See 10.3.7.1.29 */
 #define USDHC_VEND_SPEC_FRC_SDCLK_ON BIT(8) /* Force CLK output active. */
 
+/* Documentation: 4.9 of the SD Spec */
 typedef enum {
     RespType_None = 0,
     RespType_R1,
@@ -136,10 +152,11 @@ typedef struct {
     uint8_t cmd_index;
     response_type_t cmd_response_type;
     bool is_app_cmd;
+    bool data_present;
 } sd_cmd_t;
 
-#define _SD_CMD_DEF(number, rtype)  (sd_cmd_t){.cmd_index = (number), .cmd_response_type = (rtype), .is_app_cmd = false}
-#define _SD_ACMD_DEF(number, rtype) (sd_cmd_t){.cmd_index = (number), .cmd_response_type = (rtype), .is_app_cmd = true}
+#define _SD_CMD_DEF(number, rtype, ...)  (sd_cmd_t){.cmd_index = (number), .cmd_response_type = (rtype), .is_app_cmd = false, ##__VA_ARGS__}
+#define _SD_ACMD_DEF(number, rtype) (sd_cmd_t){.cmd_index = (number), .cmd_response_type = (rtype), .is_app_cmd = true, .data_present = false}
 
 /* GENERIC? */
 #define SD_CMD0_GO_IDLE_STATE      _SD_CMD_DEF(0, RespType_None)
@@ -147,6 +164,8 @@ typedef struct {
 #define SD_CMD3_SEND_RELATIVE_ADDR _SD_CMD_DEF(3, RespType_R6)
 #define SD_CMD7_CARD_SELECT        _SD_CMD_DEF(7, RespType_R1b)
 #define SD_CMD8_SEND_IF_COND       _SD_CMD_DEF(8, RespType_R7)
+#define SD_CMD16_SET_BLOCKLEN      _SD_CMD_DEF(16, RespType_R1)
+#define SD_CMD17_READ_SINGLE_BLOCK _SD_CMD_DEF(17, RespType_R1, .data_present = true)
 #define SD_CMD55_APP_CMD           _SD_CMD_DEF(55, RespType_R1)
 
 #define SD_ACMD41_SD_SEND_OP_COND  _SD_ACMD_DEF(41, RespType_R3)
