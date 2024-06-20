@@ -13,6 +13,10 @@ const DriverClass = struct {
         meson,
         imx,
     };
+
+    const I2c = enum {
+        meson,
+    };
 };
 
 const util_src = [_][]const u8{
@@ -88,6 +92,32 @@ fn addTimerDriver(
         .file = b.path(source),
         .flags = &.{ "-fno-sanitize=undefined" }
     });
+    driver.addIncludePath(b.path("include"));
+    driver.linkLibrary(util);
+
+    return driver;
+}
+
+fn addI2cDriver(
+    b: *std.Build,
+    util: *std.Build.Step.Compile,
+    class: DriverClass.I2c,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Step.Compile {
+    const driver = addPd(b, .{
+        .name = b.fmt("driver_i2c_{s}.elf", .{ @tagName(class) }),
+        .target = target,
+        .optimize = optimize,
+        .strip = false,
+    });
+    const source = b.fmt("drivers/i2c/{s}/i2c.c", .{ @tagName(class) });
+    driver.addCSourceFile(.{
+        .file = b.path(source),
+        // Note: the I2C_BUS_NUM flag is temporary
+        .flags = &.{ "-fno-sanitize=undefined", "-DI2C_BUS_NUM=2" }
+    });
+    driver.addIncludePath(b.path(b.fmt("drivers/i2c/{s}/", .{ @tagName(class) })));
     driver.addIncludePath(b.path("include"));
     driver.linkLibrary(util);
 
@@ -222,6 +252,29 @@ pub fn build(b: *std.Build) void {
     // Timer drivers
     inline for (std.meta.fields(DriverClass.Timer)) |class| {
         const driver = addTimerDriver(b, util, @enumFromInt(class.value), target, optimize);
+        driver.linkLibrary(util_putchar_debug);
+        b.installArtifact(driver);
+    }
+
+    // I2C components
+    const i2c_virt = addPd(b, .{
+        .name = "i2c_virt.elf",
+        .target = target,
+        .optimize = optimize,
+        .strip = false,
+    });
+    i2c_virt.addCSourceFile(.{
+        .file = b.path("i2c/components/virt.c"),
+        .flags = &.{"-fno-sanitize=undefined"}
+    });
+    i2c_virt.addIncludePath(b.path("include"));
+    i2c_virt.linkLibrary(util);
+    i2c_virt.linkLibrary(util_putchar_debug);
+    b.installArtifact(i2c_virt);
+
+    // I2C drivers
+    inline for (std.meta.fields(DriverClass.I2c)) |class| {
+        const driver = addI2cDriver(b, util, @enumFromInt(class.value), target, optimize);
         driver.linkLibrary(util_putchar_debug);
         b.installArtifact(driver);
     }
