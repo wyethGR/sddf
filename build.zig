@@ -1,10 +1,18 @@
 const std = @import("std");
 const LazyPath = std.Build.LazyPath;
 
-const DriverUart = enum {
-    arm,
-    meson,
-    imx,
+const DriverClass = struct {
+    const Uart = enum {
+        arm,
+        meson,
+        imx,
+    };
+
+    const Timer = enum {
+        arm,
+        meson,
+        imx,
+    };
 };
 
 const util_src = [_][]const u8{
@@ -38,7 +46,7 @@ fn addUartDriver(
     b: *std.Build,
     serial_config_include: LazyPath,
     util: *std.Build.Step.Compile,
-    class: DriverUart,
+    class: DriverClass.Uart,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Step.Compile {
@@ -62,6 +70,30 @@ fn addUartDriver(
     return driver;
 }
 
+fn addTimerDriver(
+    b: *std.Build,
+    util: *std.Build.Step.Compile,
+    class: DriverClass.Timer,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Step.Compile {
+    const driver = addPd(b, .{
+        .name = b.fmt("driver_timer_{s}.elf", .{ @tagName(class) }),
+        .target = target,
+        .optimize = optimize,
+        .strip = false,
+    });
+    const source = b.fmt("drivers/clock/{s}/timer.c", .{ @tagName(class) });
+    driver.addCSourceFile(.{
+        .file = b.path(source),
+        .flags = &.{ "-fno-sanitize=undefined" }
+    });
+    driver.addIncludePath(b.path("include"));
+    driver.linkLibrary(util);
+
+    return driver;
+}
+
 fn addPd(b: *std.Build, options: std.Build.ExecutableOptions) *std.Build.Step.Compile {
     const pd = b.addExecutable(options);
     pd.addObjectFile(libmicrokit);
@@ -79,9 +111,9 @@ pub fn build(b: *std.Build) void {
     const libmicrokit_include_opt = b.option([]const u8, "libmicrokit_include", "Path to the libmicrokit include directory") orelse null;
     const libmicrokit_linker_script_opt = b.option([]const u8, "libmicrokit_linker_script", "Path to the libmicrokit linker script") orelse null;
 
-    const serial_config_include_option = b.option([]const u8, "serial_config_include", "Include path to serial config header") orelse null;
+    const serial_config_include_option = b.option([]const u8, "serial_config_include", "Include path to serial config header") orelse "";
     // TODO: sort out
-    const serial_config_include = LazyPath{ .cwd_relative = serial_config_include_option.? };
+    const serial_config_include = LazyPath{ .cwd_relative = serial_config_include_option };
 
     // libmicrokit
     // We're declaring explicitly here instead of with anonymous structs due to a bug. See https://github.com/ziglang/zig/issues/19832
@@ -181,8 +213,15 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(serial_virt_tx);
 
     // UART drivers
-    inline for (std.meta.fields(DriverUart)) |class| {
+    inline for (std.meta.fields(DriverClass.Uart)) |class| {
         const driver = addUartDriver(b, serial_config_include, util, @enumFromInt(class.value), target, optimize);
+        driver.linkLibrary(util_putchar_debug);
+        b.installArtifact(driver);
+    }
+
+    // Timer drivers
+    inline for (std.meta.fields(DriverClass.Timer)) |class| {
+        const driver = addTimerDriver(b, util, @enumFromInt(class.value), target, optimize);
         driver.linkLibrary(util_putchar_debug);
         b.installArtifact(driver);
     }
