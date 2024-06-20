@@ -1,0 +1,6 @@
+{
+    "compatibles": [
+        "amlogic,meson-gx-uart",
+        "amlogic,meson-ao-uart"
+    ]
+}

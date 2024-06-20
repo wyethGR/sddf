@@ -1,0 +1,5 @@
+{
+    "compatibles": [
+        "arm,pl011"
+    ]
+}
