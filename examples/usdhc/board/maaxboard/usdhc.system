@@ -18,7 +18,7 @@
         <map mr="usdhc1" vaddr="0x5_000_000" perms="rw" cached="false" setvar_vaddr="usdhc_regs" />
         <map mr="iomuxc" vaddr="0x5_010_000" perms="rw" cached="false" setvar_vaddr="iomuxc_regs" />
 
-        <map mr="usdhc_dma_buffer" vaddr="0x5_020_000" perms="rw" cached="true" setvar_vaddr="usdhc_dma_buffer_vaddr" />
+        <map mr="usdhc_dma_buffer" vaddr="0x5_020_000" perms="rw" cached="false" setvar_vaddr="usdhc_dma_buffer_vaddr" />
         <setvar symbol="usdhc_dma_buffer_paddr" region_paddr="usdhc_dma_buffer" />
 
         <!-- Table 7-2; uSDHC1 Enhanced SDHC Interrupt Request -->

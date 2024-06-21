@@ -86,6 +86,9 @@ uint32_t get_command_xfr_typ(sd_cmd_t cmd) {
         cmd_xfr_typ |= USHDC_CMD_XFR_TYP_CICEN;
         cmd_xfr_typ |= USDHC_CMD_XFR_TYP_CCCEN;
         cmd_xfr_typ |= (0b11 << USDHC_CMD_XFR_TYP_RSPTYP_SHIFT);
+
+        // Also set DPSEl
+        cmd_xfr_typ |= USDHC_CMD_XFR_TYP_DPSEL;
     } else {
         sddf_printf("unknown rtype!\n");
     }
@@ -428,9 +431,11 @@ The card checks the operational conditions and the HCS bit in the OCR only at th
 
 /* 4.3 of SD Spec, 10.3.4.3.2.1 of ref manual */
 void usdhc_read_single_block() {
+    bool success;
+
     /* [31:16] RCA, [15:0] Stuff bits*/
     /* move the card to the transfer state */
-    bool success = usdhc_send_command_poll(SD_CMD7_CARD_SELECT, ((uint32_t)card_info.rca << 16));
+    success = usdhc_send_command_poll(SD_CMD7_CARD_SELECT, ((uint32_t)card_info.rca << 16));
     /* TODO: R1b description: The Host shall check for busy at the response ??? */
     if (!success) {
         sddf_printf("failed to move card to transfer state\n");
@@ -457,7 +462,7 @@ void usdhc_read_single_block() {
 
     /* SDSC Card (CCS=0) uses byte unit address and SDHC and SDXC Cards (CCS=1) use block unit address (512 Bytes
 unit). */
-    uint32_t data_address = 1; /* 1st block (0 is MBR i believe )*/
+    uint32_t data_address = 0; /* 1st block (0 is MBR i believe )*/
     if (!card_info.ccs) {
         data_address *= block_length; /* convert to byte address */
     }
@@ -498,7 +503,7 @@ void init()
     microkit_dbg_puts("hello from usdhc driver\n");
 
     // this doesn't do anything...???? (maybe it does but it looks the same so)
-    usdhc_setup_iomuxc();
+    // usdhc_setup_iomuxc();
     usdhc_reset();
 
     // TODO: This appears to be broken and does not work at all; Linux does not
