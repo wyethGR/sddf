@@ -16,16 +16,12 @@
 /* Queue regions */
 uintptr_t rx_free_drv;
 uintptr_t rx_active_drv;
-uintptr_t rx_free_arp;
-uintptr_t rx_active_arp;
-uintptr_t rx_free_cli0;
-uintptr_t rx_active_cli0;
-uintptr_t rx_free_cli1;
-uintptr_t rx_active_cli1;
+uintptr_t rx_free_virt;
+uintptr_t rx_active_virt;
 
 /* Buffer data regions */
-uintptr_t buffer_data_vaddr;
-uintptr_t buffer_data_paddr;
+uintptr_t rx_buffer_data_region_vaddr;
+uintptr_t rx_buffer_data_region_paddr;
 
 typedef struct state {
     net_queue_handle_t rx_queue_drv;
@@ -59,16 +55,16 @@ void rx_return(void)
             int err = net_dequeue_active(&state.rx_queue_drv, &buffer);
             assert(!err);
 
-            buffer.io_or_offset = buffer.io_or_offset - buffer_data_paddr;
-            microkit_arm_vspace_data_invalidate(buffer.io_or_offset + buffer_data_vaddr, buffer.io_or_offset + buffer_data_vaddr + ROUND_UP(buffer.len, CONFIG_L1_CACHE_LINE_SIZE_BITS));
+            buffer.io_or_offset = buffer.io_or_offset - rx_buffer_data_region_paddr;
+            microkit_arm_vspace_data_invalidate(buffer.io_or_offset + rx_buffer_data_region_vaddr, buffer.io_or_offset + rx_buffer_data_region_vaddr + ROUND_UP(buffer.len, CONFIG_L1_CACHE_LINE_SIZE_BITS));
 
-            int client = get_client((struct ethernet_header *) (buffer.io_or_offset + buffer_data_vaddr));
+            int client = get_client((struct ethernet_header *) (buffer.io_or_offset + rx_buffer_data_region_vaddr));
             if (client >= 0) {
                 err = net_enqueue_active(&state.rx_queue_clients[client], buffer);
                 assert(!err);
                 notify_clients[client] = true;
             } else {
-                buffer.io_or_offset = buffer.io_or_offset + buffer_data_paddr;
+                buffer.io_or_offset = buffer.io_or_offset + rx_buffer_data_region_paddr;
                 err = net_enqueue_free(&state.rx_queue_drv, buffer);
                 assert(!err);
                 notify_drv = true;
@@ -104,7 +100,7 @@ void rx_provide(void)
                 assert(!(buffer.io_or_offset % NET_BUFFER_SIZE) && 
                        (buffer.io_or_offset < NET_BUFFER_SIZE * state.rx_queue_clients[client].size));
 
-                buffer.io_or_offset = buffer.io_or_offset + buffer_data_paddr;
+                buffer.io_or_offset = buffer.io_or_offset + rx_buffer_data_region_paddr;
                 err = net_enqueue_free(&state.rx_queue_drv, buffer);
                 assert(!err);
                 notify_drv = true;
@@ -137,8 +133,8 @@ void init(void)
     virt_mac_addr_init_sys(microkit_name, (uint8_t *) state.mac_addrs);
 
     net_queue_init(&state.rx_queue_drv, (net_queue_t *)rx_free_drv, (net_queue_t *)rx_active_drv, RX_QUEUE_SIZE_DRIV);
-    virt_queue_init_sys(microkit_name, state.rx_queue_clients, rx_free_arp, rx_active_arp);
-    net_buffers_init(&state.rx_queue_drv, buffer_data_paddr);
+    net_queue_init(&state.rx_queue_clients[0], (net_queue_t *)rx_free_virt, (net_queue_t *)rx_active_virt, RX_QUEUE_SIZE_CLI0);
+    net_buffers_init(&state.rx_queue_drv, rx_buffer_data_region_paddr);
 
     if (net_require_signal_free(&state.rx_queue_drv)) {
         net_cancel_signal_free(&state.rx_queue_drv);
