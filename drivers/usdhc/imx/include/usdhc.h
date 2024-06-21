@@ -52,7 +52,6 @@ typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 #define USDHC_BLK_ATT_BLKSIZE_MASK  (BIT(13) - 1)  /* 13 Bits: BLK_ATT[12-0] */
 
 /* CMD_XFR_TYP Bits. See 10.3.7.1.5 */
-#define USDHC_CMD_XFR_TYP_DMAEN BIT(0)  /* DMA enable */
 #define USDHC_CMD_XFR_TYP_CCCEN BIT(19) /* Command CRC check enable */
 #define USHDC_CMD_XFR_TYP_CICEN BIT(20) /* Command index check enable */
 #define USDHC_CMD_XFR_TYP_DPSEL BIT(21) /* Data present select */
@@ -65,6 +64,10 @@ typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 #define USDHC_PRES_STATE_CDIHB BIT(1)  /* Command inhibit (DATA) */
 #define USDHC_PRES_STATE_SDSTB BIT(3)  /* SD clock stable */
 #define USDHC_PRES_STATE_CINST BIT(16) /* Card inserted. */
+
+/* PROT_CTRL Bits. See 10.3.7.1.12 */
+#define USDHC_PROT_CTRL_DMASEL_SHIFT 8             /* DMA select. */
+#define USDHC_PROT_CTRL_DMASEL_MASK  (BIT(2) - 1)  /* 2 Bits: PROT_CTLR[9-8] */
 
 /* SYS_CTRL Bits. See 10.3.7.1.13 */
 #define USDHC_SYS_CTRL_RSTA  BIT(24)  /* Software reset for all */
@@ -129,9 +132,12 @@ typedef volatile struct imx_usdhc_regs imx_usdhc_regs_t;
 #define USDHC_INT_SIGNAL_TNEIEN   BIT(26)  /* Tuning error interrupt enable */
 #define USDHC_INT_SIGNAL_DMAEIEN  BIT(28)  /* DMA error interrupt enable */
 
-#define USDHC_MIX_CTRL_MSBSEL BIT(5) /* Mult / Single block select */
+/* MIX_CTLR Bits. See 10.3.7.1.20 */
+#define USDHC_MIX_CTRL_DMAEN  BIT(0)  /* DMA enable */
+#define USDHC_MIX_CTLR_AC12EN BIT(2)  /* Auto CMD12 enable */
+#define USDHC_MIX_CTRL_MSBSEL BIT(5)  /* Mult / Single block select */
 
-/* VEND_SPEC BIts. See 10.3.7.1.29 */
+/* VEND_SPEC Bits. See 10.3.7.1.29 */
 #define USDHC_VEND_SPEC_FRC_SDCLK_ON BIT(8) /* Force CLK output active. */
 
 /* Documentation: 4.9 of the SD Spec */
@@ -164,6 +170,7 @@ typedef struct {
 #define SD_CMD3_SEND_RELATIVE_ADDR _SD_CMD_DEF(3, RespType_R6)
 #define SD_CMD7_CARD_SELECT        _SD_CMD_DEF(7, RespType_R1b)
 #define SD_CMD8_SEND_IF_COND       _SD_CMD_DEF(8, RespType_R7)
+#define SD_CMD13_SEND_STATUS       _SD_CMD_DEF(13, RespType_R1)
 #define SD_CMD16_SET_BLOCKLEN      _SD_CMD_DEF(16, RespType_R1)
 #define SD_CMD17_READ_SINGLE_BLOCK _SD_CMD_DEF(17, RespType_R1, .data_present = true)
 #define SD_CMD55_APP_CMD           _SD_CMD_DEF(55, RespType_R1)

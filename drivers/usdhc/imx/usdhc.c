@@ -12,7 +12,7 @@ uintptr_t usdhc_dma_buffer_paddr;
 #define USDHC_INT_CHANNEL 1
 
 void usdhc_debug(void) {
-    sddf_printf("uSDHC: PRES_STATE: %u, PROT_CTRL: %u, SYS_CTLR: %u, INT_STATUS: %u, INT_STATUS_EN: %u, INT_SIGNAL_EN: %u, VEND_SPEC: %u\n", usdhc_regs->pres_state, usdhc_regs->prot_ctrl, usdhc_regs->sys_ctrl, usdhc_regs->int_status, usdhc_regs->int_status_en, usdhc_regs->int_signal_en, usdhc_regs->vend_spec);
+    sddf_printf("uSDHC: PRES_STATE: %u, PROT_CTRL: %u, SYS_CTRL: %u, MIX_CTRL: %u, INT_STATUS: %u, INT_STATUS_EN: %u, INT_SIGNAL_EN: %u, VEND_SPEC: %u, VEND_SPEC2: %u, BLK_ATT: %u\n", usdhc_regs->pres_state, usdhc_regs->prot_ctrl, usdhc_regs->sys_ctrl, usdhc_regs->mix_ctrl, usdhc_regs->int_status, usdhc_regs->int_status_en, usdhc_regs->int_signal_en, usdhc_regs->vend_spec, usdhc_regs->vend_spec2, usdhc_regs->blk_att);
     sddf_printf("uSDHC: CMD_RSP0: %u, CMD_RSP1: %u, CMD_RSP2: %u, CMD_RSP3: %u\n", usdhc_regs->cmd_rsp0, usdhc_regs->cmd_rsp1, usdhc_regs->cmd_rsp2, usdhc_regs->cmd_rsp3);
 }
 
@@ -44,7 +44,7 @@ void usdhc_mask_interrupts() {
 
 void usdhc_unmask_interrupts() {
     // TODO: Reenable lol, atm we just use polling
-    usdhc_regs->int_signal_en = 0xfffffff;
+    // usdhc_regs->int_signal_en = 0xfffffff;
 }
 
 uint32_t get_command_xfr_typ(sd_cmd_t cmd) {
@@ -54,7 +54,8 @@ uint32_t get_command_xfr_typ(sd_cmd_t cmd) {
 
     if (cmd.data_present) {
         sddf_printf("command has data present\n");
-        cmd_xfr_typ |= USDHC_CMD_XFR_TYP_DPSEL | USDHC_CMD_XFR_TYP_DMAEN;
+        cmd_xfr_typ |= USDHC_CMD_XFR_TYP_DPSEL;
+        usdhc_regs->mix_ctrl |= USDHC_MIX_CTRL_DMAEN | USDHC_MIX_CTLR_AC12EN;
     }
 
     /* Ref: Table 10-42.
@@ -172,6 +173,7 @@ bool usdhc_send_command_poll(sd_cmd_t cmd, uint32_t cmd_arg)
 
     /* clear CC bit and all command error bits... */
     /* n.b. writing 1 clears it ! lol.... */
+    assert(usdhc_regs->int_status == USDHC_INT_STATUS_CC);
     usdhc_regs->int_status = USDHC_INT_STATUS_CC;
 
     return true;
@@ -444,7 +446,8 @@ void usdhc_read_single_block() {
     }
 
     /* 3. Set the uSDHC block length register to be the same as the block length set for the card in step 2.*/
-    usdhc_regs->blk_att = (block_length & USDHC_BLK_ATT_BLKSIZE_MASK) << USDHC_BLK_ATT_BLKSIZE_SHIFT;
+    usdhc_regs->blk_att |= (block_length & USDHC_BLK_ATT_BLKSIZE_MASK) << USDHC_BLK_ATT_BLKSIZE_SHIFT;
+    assert(usdhc_regs->blk_att & BIT(16));
 
     // TODO check if data transfer active
     usdhc_regs->mix_ctrl &= ~USDHC_MIX_CTRL_MSBSEL; /* disable multiple blocks */
@@ -465,10 +468,8 @@ unit). */
     sddf_printf("dma system addr (phys): 0x%x\n", usdhc_regs->ds_addr);
     usdhc_debug();
 
-    if (!(usdhc_regs->host_ctrl_cap & BIT(22))) {
-        sddf_printf("dmas not enabled!\n");
-        return;
-    }
+    assert(usdhc_regs->host_ctrl_cap & BIT(22));
+
 
     /* 5. send command */
     success = usdhc_send_command_poll(SD_CMD17_READ_SINGLE_BLOCK, data_address);
@@ -481,8 +482,10 @@ unit). */
     usdhc_debug();
     sddf_printf("dma system addr (phys): 0x%x\n", usdhc_regs->ds_addr);
 
-    // TODO: Gets stuck here.
+    // DMASEL.
+    assert(!(usdhc_regs->prot_ctrl & BIT(9))  && !(usdhc_regs->prot_ctrl & BIT(8)));
 
+    // TODO: Gets stuck here.
     /* 6. Wait for the Transfer Complete interrupt. */
     // while (!(usdhc_regs->int_status & USDHC_INT_STATUS_TC)); // todo: timeout
     while (!usdhc_regs->int_status);
@@ -493,7 +496,6 @@ unit). */
 void init()
 {
     microkit_dbg_puts("hello from usdhc driver\n");
-    // usdhc_read_support_voltages();
 
     // this doesn't do anything...???? (maybe it does but it looks the same so)
     usdhc_setup_iomuxc();
