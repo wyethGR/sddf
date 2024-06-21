@@ -140,16 +140,17 @@ pub fn build(b: *std.Build) void {
     const libmicrokit_opt = b.option([]const u8, "libmicrokit", "Path to libmicrokit.a") orelse null;
     const libmicrokit_include_opt = b.option([]const u8, "libmicrokit_include", "Path to the libmicrokit include directory") orelse null;
     const libmicrokit_linker_script_opt = b.option([]const u8, "libmicrokit_linker_script", "Path to the libmicrokit linker script") orelse null;
-
+    const blk_num_clients_opt = b.option(u32, "blk_num_clients", "Number of block clients") orelse 2;
     const serial_config_include_option = b.option([]const u8, "serial_config_include", "Include path to serial config header") orelse "";
+
     // TODO: sort out
     const serial_config_include = LazyPath{ .cwd_relative = serial_config_include_option };
-
     // libmicrokit
     // We're declaring explicitly here instead of with anonymous structs due to a bug. See https://github.com/ziglang/zig/issues/19832
     libmicrokit = LazyPath{ .cwd_relative = libmicrokit_opt.? };
     libmicrokit_include = LazyPath{ .cwd_relative = libmicrokit_include_opt.? };
     libmicrokit_linker_script = LazyPath{ .cwd_relative = libmicrokit_linker_script_opt.? };
+
 
     // util libraries
     const util = b.addStaticLibrary(.{
@@ -201,8 +202,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .strip = false,
     });
-    // TODO: This flag -DBLK_NUM_CLIENTS needs to be configurable by the user of this dependency
-    blk_virt.addCSourceFile(.{ .file = b.path("blk/components/virt.c"), .flags = &.{"-DBLK_NUM_CLIENTS=2"} });
+    blk_virt.addCSourceFile(.{ .file = b.path("blk/components/virt.c"), .flags = &.{b.fmt("-DBLK_NUM_CLIENTS={any}", .{blk_num_clients_opt})} });
     blk_virt.addCSourceFiles(.{ .files = &.{ "blk/util/bitarray.c", "blk/util/fsmalloc.c", "blk/util/util.c", "util/cache.c" } });
     blk_virt.addIncludePath(b.path("include"));
     blk_virt.linkLibrary(util_putchar_debug);
@@ -231,7 +231,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .strip = false,
     });
-    // TODO: This flag -DSERIAL_NUM_CLIENTS=3 -DSERIAL_TRANSFER_WITH_COLOUR needs to be configurable by the user of this dependency
     serial_virt_tx.addCSourceFile(.{
         .file = b.path("serial/components/virt_tx.c"),
         .flags = &.{"-fno-sanitize=undefined"}
