@@ -28,6 +28,7 @@ const util_src = [_][]const u8{
     "blk/util/fsmalloc.c",
     "blk/util/bitarray.c",
     // "blk/util/util.c",
+    "util/assert.c",
 };
 
 const util_putchar_debug_src = [_][]const u8{
