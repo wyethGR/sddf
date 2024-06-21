@@ -212,9 +212,12 @@ void usdhc_setup_clock() {
     sys_ctrl &= ~(0b111111111111 << 4); // clear bits 4 to 15.
     sys_ctrl |= BIT(15); // this is 0x80h into SDCLKFS;
     sys_ctrl |= BIT(4) | BIT(5) | BIT(6) | BIT(7); // divisor = 16.
-    usdhc_regs->sys_ctrl;
+    usdhc_regs->sys_ctrl; // TODO: Why not set??? => apparently setting breaks????
 
     while (!is_usdhc_clock_stable()); // TODO: ... timeout
+
+
+    // sys_ctrl |= ((0b0000) << 16); // Set DTOCV to the maximum... TOOD: not here...
 }
 
 /* Ref: See 10.3.4.2.2 "Reset" */
@@ -223,6 +226,7 @@ void usdhc_reset(void)
     // Perform software reset of all components
     usdhc_regs->sys_ctrl |= USDHC_SYS_CTRL_RSTA;
 
+    // TODO: This is also broke....
     usdhc_setup_clock(/* 400 kHz */);
 
     usdhc_regs->int_status_en |= USDHC_INT_STATUS_EN_TCSEN | USDHC_INT_STATUS_EN_DINTSEN
@@ -502,8 +506,10 @@ void init()
 {
     microkit_dbg_puts("hello from usdhc driver\n");
 
-    // this doesn't do anything...???? (maybe it does but it looks the same so)
+    // This is all.... very broken... and yet somehow disabling it has permanently
+    // made it work again.
     // usdhc_setup_iomuxc();
+
     usdhc_reset();
 
     // TODO: This appears to be broken and does not work at all; Linux does not
@@ -520,5 +526,4 @@ void init()
 
     // Figure 4-13 : SD Memory Card State Diagram (data transfer mode)
     usdhc_read_single_block();
-
 }
