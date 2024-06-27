@@ -14,6 +14,8 @@
 #include "config.h"
 #include "ethernet.h"
 
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
 #define IRQ_CH 0
 #define TX_CH  1
 #define RX_CH  2
