@@ -10,8 +10,8 @@
 #include <sddf/util/fence.h>
 #include <sddf/util/util.h>
 #include <sddf/util/printf.h>
-#include <ethernet_config.h>
 
+#include "config.h"
 #include "ethernet.h"
 
 #define IRQ_CH 0
@@ -29,6 +29,7 @@ uintptr_t tx_active;
 
 #define RX_COUNT 256
 #define TX_COUNT 256
+#define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #define MAX_COUNT MAX(RX_COUNT, TX_COUNT)
 
 struct descriptor {
@@ -246,8 +247,8 @@ void init(void)
 {
     eth_setup();
 
-    net_queue_init(&rx_queue, (net_queue_t *)rx_free, (net_queue_t *)rx_active, RX_QUEUE_SIZE_DRIV);
-    net_queue_init(&tx_queue, (net_queue_t *)tx_free, (net_queue_t *)tx_active, TX_QUEUE_SIZE_DRIV);
+    net_queue_init(&rx_queue, (net_queue_t *)rx_free, (net_queue_t *)rx_active, BUFS_PER_DIR);
+    net_queue_init(&tx_queue, (net_queue_t *)tx_free, (net_queue_t *)tx_active, BUFS_PER_DIR);
 
     rx_provide();
     tx_provide();
