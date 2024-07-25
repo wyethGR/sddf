@@ -41,6 +41,18 @@ typedef struct net_queue_handle {
 } net_queue_handle_t;
 
 /**
+ * Get the number of buffers enqueued into a queue.
+ *
+ * @param queue queue handle for the queue to get the size of.
+ *
+ * @return number of buffers enqueued into a queue.
+ */
+static inline uint16_t net_queue_size(net_queue_t *queue)
+{
+    return queue->tail - queue->head;
+}
+
+/**
  * Check if the free queue is empty.
  *
  * @param queue queue handle for the free queue to check.
@@ -49,7 +61,7 @@ typedef struct net_queue_handle {
  */
 static inline bool net_queue_empty_free(net_queue_handle_t *queue)
 {
-    return !((queue->free->tail - queue->free->head) % queue->size);
+    return queue->free->tail - queue->free->head == 0;
 }
 
 /**
@@ -61,7 +73,7 @@ static inline bool net_queue_empty_free(net_queue_handle_t *queue)
  */
 static inline bool net_queue_empty_active(net_queue_handle_t *queue)
 {
-    return !((queue->active->tail - queue->active->head) % queue->size);
+    return queue->active->tail - queue->active->head == 0;
 }
 
 /**
@@ -73,7 +85,7 @@ static inline bool net_queue_empty_active(net_queue_handle_t *queue)
  */
 static inline bool net_queue_full_free(net_queue_handle_t *queue)
 {
-    return !((queue->free->tail + 1 - queue->free->head) % queue->size);
+    return queue->free->tail + 1 - queue->free->head == queue->size;
 }
 
 /**
@@ -85,7 +97,7 @@ static inline bool net_queue_full_free(net_queue_handle_t *queue)
  */
 static inline bool net_queue_full_active(net_queue_handle_t *queue)
 {
-    return !((queue->active->tail + 1 - queue->active->head) % queue->size);
+    return queue->active->tail + 1 - queue->active->head == queue->size;
 }
 
 /**
