@@ -75,6 +75,7 @@ void tx_return(void) {
             int err = net_dequeue_free(&tx_queue_drv, &buffer);
             assert(!err);
 
+            buffer.io_or_offset -= tx_buffer_data_region_paddr;
             err = net_enqueue_free(&tx_queue_client, buffer);
             assert(!err);
             notify_client = true;
