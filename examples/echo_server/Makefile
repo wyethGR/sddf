@@ -19,7 +19,12 @@ ifeq ($(strip $(TOOLCHAIN)),)
 	export LIBC := $(dir $(realpath $(shell aarch64-none-elf-gcc --print-file-name libc.a)))
 endif
 
-ifeq ($(strip $(MICROKIT_BOARD)), odroidc4)
+ifeq ($(strip $(MICROKIT_BOARD)), odroidc2)
+	export DRIV_DIR := meson
+	export UART_DRIV_DIR := meson
+	export TIMER_DRV_DIR := meson
+	export CPU := cortex-a53
+else ifeq ($(strip $(MICROKIT_BOARD)), odroidc4)
 	export DRIV_DIR := meson
 	export UART_DRIV_DIR := meson
 	export TIMER_DRV_DIR := meson
