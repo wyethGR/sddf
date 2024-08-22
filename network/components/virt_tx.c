@@ -105,11 +105,11 @@ void init(void) {
     net_queue_init(&tx_queue_drv,
                    (net_queue_t *) tx_free_drv,
                    (net_queue_t *) tx_active_drv,
-                   BUFS_PER_DIR);
+                   NUM_BUFS);
     net_queue_init(&tx_queue_client,
                    (net_queue_t *) tx_free_virt,
                    (net_queue_t *) tx_active_virt,
-                   BUFS_PER_DIR);
+                   NUM_BUFS);
 
     tx_provide();
 }

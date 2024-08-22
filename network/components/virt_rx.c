@@ -1,6 +1,7 @@
 #include <microkit.h>
 #include <sddf/network/constants.h>
 #include <sddf/network/queue.h>
+#include <sddf/util/cache.h>
 #include <sddf/util/fence.h>
 #include <sddf/util/printf.h>
 #include <sddf/util/util.h>
@@ -42,10 +43,12 @@ void rx_return(void) {
 
             buffer.io_or_offset =
                 buffer.io_or_offset - rx_buffer_data_region_paddr;
-            microkit_arm_vspace_data_invalidate(
-                buffer.io_or_offset + rx_buffer_data_region_vaddr,
-                buffer.io_or_offset + rx_buffer_data_region_vaddr +
-                    ROUND_UP(buffer.len, CONFIG_L1_CACHE_LINE_SIZE_BITS));
+            uintptr_t buffer_vaddr = buffer.io_or_offset + rx_buffer_data_region_vaddr;
+            cache_clean_and_invalidate(buffer_vaddr, buffer_vaddr + buffer.len);
+            //microkit_arm_vspace_data_invalidate(
+            //    buffer.io_or_offset + rx_buffer_data_region_vaddr,
+            //    buffer.io_or_offset + rx_buffer_data_region_vaddr +
+            //        ROUND_UP(buffer.len, CONFIG_L1_CACHE_LINE_SIZE_BITS));
 
             err = net_enqueue_active(&rx_queue_client, buffer);
             assert(!err);
@@ -97,6 +100,7 @@ void rx_provide(void) {
     if (notify_drv && net_require_signal_free(&rx_queue_drv)) {
         net_cancel_signal_free(&rx_queue_drv);
         microkit_notify_delayed(DRIVER_CH);
+        notify_drv = false;
     }
 }
 
