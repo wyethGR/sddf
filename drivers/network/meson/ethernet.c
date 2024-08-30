@@ -10,8 +10,8 @@
 #include <sddf/util/fence.h>
 #include <sddf/util/util.h>
 #include <sddf/util/printf.h>
-#include <ethernet_config.h>
 
+#include "config.h"
 #include "ethernet.h"
 
 #define IRQ_CH 0
