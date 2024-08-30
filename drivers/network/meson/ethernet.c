@@ -260,7 +260,7 @@ static void eth_setup(void)
     eth_dma->rxdesclistaddr = hw_ring_buffer_paddr;
     eth_dma->txdesclistaddr = hw_ring_buffer_paddr + (sizeof(struct descriptor) * RX_COUNT);
 
-    eth_mac->framefilt |= PMSCUOUS_MODE;
+    //eth_mac->framefilt |= PMSCUOUS_MODE;
 
     uint32_t flow_ctrl = GMAC_FLOW_CTRL_UP | GMAC_FLOW_CTRL_RFE | GMAC_FLOW_CTRL_TFE;
     flow_ctrl |= (pause_time << GMAC_FLOW_CTRL_PT_SHIFT);
